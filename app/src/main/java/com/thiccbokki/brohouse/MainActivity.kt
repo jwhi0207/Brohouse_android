@@ -112,7 +112,6 @@ fun BrohouseApp() {
             val tripViewModel: TripViewModel = viewModel()
             SuppliesScreen(
                 viewModel = tripViewModel,
-                isAdmin = isAdmin,
                 onNavigateBack = { navController.popBackStack() }
             )
         }

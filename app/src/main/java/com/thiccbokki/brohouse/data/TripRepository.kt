@@ -1,5 +1,6 @@
 package com.thiccbokki.brohouse.data
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -140,8 +141,10 @@ class TripRepository {
             .collection("supplies")
             .orderBy("category")
             .orderBy("sortOrder")
-            .orderBy("name")
-            .addSnapshotListener { snap, _ ->
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getSupplyItems listener failed", error)
+                }
                 val items = snap?.documents?.map { doc ->
                     SupplyItem(
                         id = doc.id,
