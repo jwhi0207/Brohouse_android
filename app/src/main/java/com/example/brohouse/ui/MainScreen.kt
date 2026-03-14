@@ -25,14 +25,20 @@ import androidx.compose.ui.unit.dp
 import com.example.brohouse.MainViewModel
 import com.example.brohouse.data.HouseDetails
 import com.example.brohouse.data.Person
+import com.example.brohouse.data.SupplyItem
 import java.text.NumberFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: MainViewModel, onNavigateToHouseDetails: () -> Unit) {
+fun MainScreen(
+    viewModel: MainViewModel,
+    onNavigateToHouseDetails: () -> Unit,
+    onNavigateToSupplies: () -> Unit
+) {
     val people by viewModel.people.collectAsState()
     val houseDetails by viewModel.houseDetails.collectAsState()
+    val supplyItems by viewModel.supplyItems.collectAsState()
 
     var showAddPerson by remember { mutableStateOf(false) }
     var editNightsPerson by remember { mutableStateOf<Person?>(null) }
@@ -59,6 +65,14 @@ fun MainScreen(viewModel: MainViewModel, onNavigateToHouseDetails: () -> Unit) {
                     details = houseDetails,
                     guestCount = people.size,
                     onClick = onNavigateToHouseDetails,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            item {
+                SuppliesCard(
+                    supplyItems = supplyItems,
+                    onClick = onNavigateToSupplies,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
@@ -292,6 +306,34 @@ fun HouseDetailsCard(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun SuppliesCard(
+    supplyItems: List<SupplyItem>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val unclaimed = supplyItems.count { it.claimedByPersonId == null }
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Supplies", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (supplyItems.isEmpty()) "No items yet — tap to add supplies"
+                else "${supplyItems.size} ${if (supplyItems.size == 1) "item" else "items"}, $unclaimed unclaimed",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
     }
 }

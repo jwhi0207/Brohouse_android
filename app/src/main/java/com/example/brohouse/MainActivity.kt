@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.brohouse.ui.HouseDetailsScreen
 import com.example.brohouse.ui.MainScreen
+import com.example.brohouse.ui.SuppliesScreen
 import com.example.brohouse.ui.theme.BrohouseTheme
 
 class MainActivity : ComponentActivity() {
@@ -25,7 +26,14 @@ class MainActivity : ComponentActivity() {
                     composable("main") {
                         MainScreen(
                             viewModel = vm,
-                            onNavigateToHouseDetails = { navController.navigate("house_details") }
+                            onNavigateToHouseDetails = { navController.navigate("house_details") },
+                            onNavigateToSupplies = { navController.navigate("supplies") }
+                        )
+                    }
+                    composable("supplies") {
+                        SuppliesScreen(
+                            viewModel = vm,
+                            onNavigateBack = { navController.popBackStack() }
                         )
                     }
                     composable("house_details") {

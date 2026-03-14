@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.brohouse.data.AppDatabase
 import com.example.brohouse.data.HouseDetails
 import com.example.brohouse.data.Person
+import com.example.brohouse.data.SupplyItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +25,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val db = AppDatabase.getDatabase(application)
     private val personDao = db.personDao()
     private val houseDetailsDao = db.houseDetailsDao()
+    private val supplyItemDao = db.supplyItemDao()
 
     val people = personDao.getAllPersons()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val houseDetails = houseDetailsDao.getHouseDetails()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val supplyItems = supplyItemDao.getAllSupplyItems()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving = _isSaving.asStateFlow()
@@ -47,6 +52,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun addPayment(person: Person, amount: Double) = viewModelScope.launch {
         personDao.update(person.copy(moneyOwed = maxOf(0.0, person.moneyOwed - amount)))
+    }
+
+    fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
+        val nextOrder = supplyItemDao.getMaxSortOrder(category) + 1
+        supplyItemDao.insert(SupplyItem(name = name, category = category, quantity = quantity, sortOrder = nextOrder))
+    }
+
+    fun reorderSupplyItems(category: String, reorderedItems: List<SupplyItem>) = viewModelScope.launch {
+        val updated = reorderedItems.mapIndexed { index, item -> item.copy(sortOrder = index) }
+        supplyItemDao.updateAll(updated)
+    }
+
+    fun claimSupplyItem(item: SupplyItem, person: Person, quantity: String = "") = viewModelScope.launch {
+        supplyItemDao.update(item.addClaim(person, quantity))
+    }
+
+    fun unclaimSupplyItem(item: SupplyItem, personName: String) = viewModelScope.launch {
+        supplyItemDao.update(item.removeClaim(personName))
+    }
+
+    fun deleteSupplyItem(item: SupplyItem) = viewModelScope.launch {
+        supplyItemDao.delete(item)
     }
 
     fun saveHouseDetails(
