@@ -13,3 +13,6 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase — contains API keys and project credentials
+app/google-services.json

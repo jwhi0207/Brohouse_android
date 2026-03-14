@@ -1,4 +1,4 @@
-package com.example.brohouse.ui
+package com.thiccbokki.brohouse.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,13 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.example.brohouse.MainViewModel
+import com.thiccbokki.brohouse.TripViewModel
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HouseDetailsScreen(viewModel: MainViewModel, onNavigateBack: () -> Unit) {
-    val houseDetails by viewModel.houseDetails.collectAsState()
+fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBack: () -> Unit) {
+    val trip by viewModel.trip.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
 
     var urlText by remember { mutableStateOf("") }
@@ -31,21 +31,19 @@ fun HouseDetailsScreen(viewModel: MainViewModel, onNavigateBack: () -> Unit) {
 
     val validNights = nightsText.trim().takeIf { it.isNotEmpty() }?.toIntOrNull()?.takeIf { it >= 0 }
     val validCost = costText.trim().toDoubleOrNull()?.takeIf { it >= 0.01 }
-    val canSave = validNights != null && validCost != null && !isSaving
+    val canSave = isAdmin && validNights != null && validCost != null && !isSaving
 
-    // Pre-fill from existing record
-    LaunchedEffect(houseDetails) {
+    LaunchedEffect(trip) {
         if (!initialized) {
-            houseDetails?.let { d ->
-                urlText = d.houseURL
-                nightsText = if (d.totalNights > 0) "${d.totalNights}" else ""
-                costText = if (d.totalCost > 0) String.format("%.2f", d.totalCost) else ""
+            trip?.let { t ->
+                urlText = t.houseURL
+                nightsText = if (t.totalNights > 0) "${t.totalNights}" else ""
+                costText = if (t.totalCost > 0) String.format("%.2f", t.totalCost) else ""
             }
             initialized = true
         }
     }
 
-    // Navigate back when save completes
     LaunchedEffect(Unit) {
         viewModel.saveComplete.collectLatest { onNavigateBack() }
     }
@@ -60,26 +58,25 @@ fun HouseDetailsScreen(viewModel: MainViewModel, onNavigateBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    if (isSaving) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .padding(end = 16.dp)
-                        )
-                    } else {
-                        TextButton(
-                            onClick = {
-                                if (canSave) {
-                                    viewModel.saveHouseDetails(
-                                        url = urlText.trim(),
-                                        nights = validNights!!,
-                                        cost = validCost!!,
-                                        currentDetails = houseDetails
-                                    )
-                                }
-                            },
-                            enabled = canSave
-                        ) { Text("Save") }
+                    if (isAdmin) {
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp).padding(end = 16.dp)
+                            )
+                        } else {
+                            TextButton(
+                                onClick = {
+                                    if (canSave) {
+                                        viewModel.saveHouseDetails(
+                                            url = urlText.trim(),
+                                            nights = validNights!!,
+                                            cost = validCost!!
+                                        )
+                                    }
+                                },
+                                enabled = canSave
+                            ) { Text("Save") }
+                        }
                     }
                 }
             )
@@ -92,46 +89,54 @@ fun HouseDetailsScreen(viewModel: MainViewModel, onNavigateBack: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // House URL
+            if (!isAdmin) {
+                Text(
+                    "View only — only admins can edit house details",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
+            }
+
             Text("House URL", style = MaterialTheme.typography.labelLarge)
             OutlinedTextField(
                 value = urlText,
-                onValueChange = { urlText = it },
+                onValueChange = { if (isAdmin) urlText = it },
                 label = { Text("https://") },
                 singleLine = true,
+                readOnly = !isAdmin,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                trailingIcon = {
+                trailingIcon = if (isAdmin) ({
                     IconButton(onClick = {
                         clipboardManager.getText()?.text?.let { urlText = it }
                     }) {
                         Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
                     }
-                },
+                }) else null,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Total Nights
             Text("Total Nights", style = MaterialTheme.typography.labelLarge)
             OutlinedTextField(
                 value = nightsText,
-                onValueChange = { nightsText = it.filter(Char::isDigit) },
+                onValueChange = { if (isAdmin) nightsText = it.filter(Char::isDigit) },
                 label = { Text("0") },
                 singleLine = true,
+                readOnly = !isAdmin,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                supportingText = { Text("Must be 0 or greater.") },
+                supportingText = if (isAdmin) ({ Text("Must be 0 or greater.") }) else null,
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Total Cost
             Text("Total Cost", style = MaterialTheme.typography.labelLarge)
             OutlinedTextField(
                 value = costText,
-                onValueChange = { costText = it },
+                onValueChange = { if (isAdmin) costText = it },
                 label = { Text("0.01") },
                 prefix = { Text("$") },
                 singleLine = true,
+                readOnly = !isAdmin,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                supportingText = { Text("Must be at least $0.01.") },
+                supportingText = if (isAdmin) ({ Text("Must be at least $0.01.") }) else null,
                 modifier = Modifier.fillMaxWidth()
             )
         }

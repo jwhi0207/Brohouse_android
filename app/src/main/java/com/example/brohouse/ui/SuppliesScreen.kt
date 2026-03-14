@@ -1,6 +1,5 @@
-package com.example.brohouse.ui
+package com.thiccbokki.brohouse.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -30,12 +29,11 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.example.brohouse.MainViewModel
-import com.example.brohouse.data.Person
-import com.example.brohouse.data.SupplyItem
-import com.example.brohouse.data.ClaimEntry
+import com.thiccbokki.brohouse.TripViewModel
+import com.thiccbokki.brohouse.data.SupplyItem
+import com.thiccbokki.brohouse.data.TripMember
+import com.thiccbokki.brohouse.data.ClaimEntry
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Drugs & Paraphernalia", "Other")
@@ -66,11 +64,12 @@ val QUICK_ADD_ITEMS = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuppliesScreen(
-    viewModel: MainViewModel,
+    viewModel: TripViewModel,
+    isAdmin: Boolean,
     onNavigateBack: () -> Unit
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
-    val people by viewModel.people.collectAsState()
+    val members by viewModel.members.collectAsState()
 
     var showAddSheet by remember { mutableStateOf(false) }
     var claimItem by remember { mutableStateOf<SupplyItem?>(null) }
@@ -78,7 +77,6 @@ fun SuppliesScreen(
     var deleteItem by remember { mutableStateOf<SupplyItem?>(null) }
     var pendingQuickAddName by remember { mutableStateOf<String?>(null) }
 
-    // When a quick-add item appears in the DB, open its claim dialog
     LaunchedEffect(pendingQuickAddName, supplyItems) {
         val name = pendingQuickAddName ?: return@LaunchedEffect
         val found = supplyItems.find { it.name.equals(name, ignoreCase = true) }
@@ -101,8 +99,10 @@ fun SuppliesScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddSheet = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Item")
+                    if (isAdmin) {
+                        IconButton(onClick = { showAddSheet = true }) {
+                            Icon(Icons.Default.Add, contentDescription = "Add Item")
+                        }
                     }
                 }
             )
@@ -117,7 +117,8 @@ fun SuppliesScreen(
             contentPadding = innerPadding,
             modifier = Modifier.fillMaxSize()
         ) {
-            if (availableQuickAdds.isNotEmpty()) {
+            // Quick Add — admin only
+            if (isAdmin && availableQuickAdds.isNotEmpty()) {
                 item(key = "quick_add") {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text(
@@ -162,7 +163,8 @@ fun SuppliesScreen(
             if (supplyItems.isEmpty()) {
                 item(key = "empty") {
                     Text(
-                        "No supplies yet — tap + or quick-add above!",
+                        if (isAdmin) "No supplies yet — tap + or quick-add above!"
+                        else "No supplies yet",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier
@@ -184,9 +186,7 @@ fun SuppliesScreen(
                         claimedCount = claimedCount,
                         totalCount = categoryItems.size,
                         isCollapsed = isCollapsed,
-                        onToggle = {
-                            collapsedCategories[category] = !isCollapsed
-                        }
+                        onToggle = { collapsedCategories[category] = !isCollapsed }
                     )
                 }
 
@@ -194,9 +194,8 @@ fun SuppliesScreen(
                     item(key = "category_items_$category") {
                         ReorderableCategory(
                             items = categoryItems,
-                            onReorder = { reordered ->
-                                viewModel.reorderSupplyItems(category, reordered)
-                            },
+                            isAdmin = isAdmin,
+                            onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
                             onClaim = { claimItem = it },
                             onManageClaims = { manageClaimItem = it },
                             onDelete = { deleteItem = it }
@@ -207,7 +206,7 @@ fun SuppliesScreen(
         }
     }
 
-    if (showAddSheet) {
+    if (isAdmin && showAddSheet) {
         AddSupplyItemSheet(
             onDismiss = { showAddSheet = false },
             onSave = { name, category, quantity ->
@@ -220,10 +219,10 @@ fun SuppliesScreen(
     claimItem?.let { item ->
         ClaimDialog(
             item = item,
-            people = people,
+            members = members,
             onDismiss = { claimItem = null },
-            onClaim = { person, quantity ->
-                viewModel.claimSupplyItem(item, person, quantity)
+            onClaim = { member, quantity ->
+                viewModel.claimSupplyItem(item, member, quantity)
                 claimItem = null
             }
         )
@@ -232,16 +231,12 @@ fun SuppliesScreen(
     manageClaimItem?.let { item ->
         ManageClaimsDialog(
             item = item,
+            members = members,
             onDismiss = { manageClaimItem = null },
-            onRemoveClaim = { personName ->
-                viewModel.unclaimSupplyItem(item, personName)
-                // Refresh item from latest state
-                val updated = item.removeClaim(personName)
-                if (updated.claimedNames.isEmpty()) {
-                    manageClaimItem = null
-                } else {
-                    manageClaimItem = updated
-                }
+            onRemoveClaim = { uid, displayName ->
+                viewModel.unclaimSupplyItem(item, uid, displayName)
+                val updated = item.removeClaim(uid, displayName)
+                manageClaimItem = if (updated.claimedNames.isEmpty()) null else updated
             },
             onAddMore = {
                 manageClaimItem = null
@@ -250,21 +245,23 @@ fun SuppliesScreen(
         )
     }
 
-    deleteItem?.let { item ->
-        AlertDialog(
-            onDismissRequest = { deleteItem = null },
-            title = { Text("Delete Item") },
-            text = { Text("Remove \"${item.name}\" from the supplies list?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteSupplyItem(item)
-                    deleteItem = null
-                }) { Text("Delete") }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleteItem = null }) { Text("Cancel") }
-            }
-        )
+    if (isAdmin) {
+        deleteItem?.let { item ->
+            AlertDialog(
+                onDismissRequest = { deleteItem = null },
+                title = { Text("Delete Item") },
+                text = { Text("Remove \"${item.name}\" from the supplies list?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteSupplyItem(item)
+                        deleteItem = null
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deleteItem = null }) { Text("Cancel") }
+                }
+            )
+        }
     }
 }
 
@@ -280,7 +277,6 @@ private fun CategoryHeader(
         targetValue = if (isCollapsed) -90f else 0f,
         label = "caret_rotation"
     )
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -293,9 +289,7 @@ private fun CategoryHeader(
             Icons.Default.KeyboardArrowDown,
             contentDescription = if (isCollapsed) "Expand" else "Collapse",
             tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier
-                .size(20.dp)
-                .rotate(rotation)
+            modifier = Modifier.size(20.dp).rotate(rotation)
         )
         Spacer(Modifier.width(8.dp))
         Text(
@@ -316,6 +310,7 @@ private fun CategoryHeader(
 @Composable
 private fun ReorderableCategory(
     items: List<SupplyItem>,
+    isAdmin: Boolean,
     onReorder: (List<SupplyItem>) -> Unit,
     onClaim: (SupplyItem) -> Unit,
     onManageClaims: (SupplyItem) -> Unit,
@@ -329,19 +324,16 @@ private fun ReorderableCategory(
     Column {
         localItems.forEachIndexed { index, item ->
             val isDragging = index == draggedIndex
-
             key(item.id) {
                 SwipeToDismissItem(
                     item = item,
+                    isAdmin = isAdmin,
                     isDragging = isDragging,
                     dragOffset = if (isDragging) dragOffset else 0f,
                     onClaim = { onClaim(item) },
                     onManageClaims = { onManageClaims(item) },
                     onDelete = { onDelete(item) },
-                    onDragStart = {
-                        draggedIndex = index
-                        dragOffset = 0f
-                    },
+                    onDragStart = { draggedIndex = index; dragOffset = 0f },
                     onDrag = { delta ->
                         dragOffset += delta
                         val targetIndex = draggedIndex + (dragOffset / itemHeightPx).roundToInt()
@@ -355,11 +347,7 @@ private fun ReorderableCategory(
                             draggedIndex = clampedTarget
                         }
                     },
-                    onDragEnd = {
-                        draggedIndex = -1
-                        dragOffset = 0f
-                        onReorder(localItems)
-                    }
+                    onDragEnd = { draggedIndex = -1; dragOffset = 0f; onReorder(localItems) }
                 )
                 HorizontalDivider()
             }
@@ -371,6 +359,7 @@ private fun ReorderableCategory(
 @Composable
 private fun SwipeToDismissItem(
     item: SupplyItem,
+    isAdmin: Boolean,
     isDragging: Boolean,
     dragOffset: Float,
     onClaim: () -> Unit,
@@ -382,50 +371,39 @@ private fun SwipeToDismissItem(
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
-            }
+            if (isAdmin && value == SwipeToDismissBoxValue.EndToStart) onDelete()
             false
         }
     )
-
     Box(
-        modifier = Modifier
-            .then(
-                if (isDragging) Modifier
-                    .zIndex(1f)
-                    .graphicsLayer { translationY = dragOffset }
-                else Modifier
-            )
+        modifier = Modifier.then(
+            if (isDragging) Modifier.zIndex(1f).graphicsLayer { translationY = dragOffset }
+            else Modifier
+        )
     ) {
         SwipeToDismissBox(
             state = dismissState,
             backgroundContent = {
-                val color by animateColorAsState(
-                    targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart)
-                        MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.surface,
-                    label = "swipe_bg"
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(color)
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.CenterEnd
-                ) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onError
+                if (isAdmin) {
+                    val color by animateColorAsState(
+                        targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart)
+                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
+                        label = "swipe_bg"
                     )
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.CenterEnd
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onError)
+                    }
                 }
             },
             enableDismissFromStartToEnd = false,
-            enableDismissFromEndToStart = !isDragging
+            enableDismissFromEndToStart = isAdmin && !isDragging
         ) {
             SupplyItemRow(
                 item = item,
+                isAdmin = isAdmin,
                 isDragging = isDragging,
                 onClick = onClaim,
                 onChipClick = onManageClaims,
@@ -440,6 +418,7 @@ private fun SwipeToDismissItem(
 @Composable
 private fun SupplyItemRow(
     item: SupplyItem,
+    isAdmin: Boolean,
     isDragging: Boolean,
     onClick: () -> Unit,
     onChipClick: () -> Unit,
@@ -448,7 +427,6 @@ private fun SupplyItemRow(
     onDragEnd: () -> Unit
 ) {
     val elevation = if (isDragging) 8.dp else 0.dp
-
     Surface(tonalElevation = elevation, shadowElevation = elevation) {
         Row(
             modifier = Modifier
@@ -458,32 +436,31 @@ private fun SupplyItemRow(
                 .padding(start = 4.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Default.DragHandle,
-                contentDescription = "Reorder",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                modifier = Modifier
-                    .padding(8.dp)
-                    .size(20.dp)
-                    .pointerInput(Unit) {
-                        detectDragGesturesAfterLongPress(
-                            onDragStart = { onDragStart() },
-                            onDrag = { change, offset ->
-                                change.consume()
-                                onDrag(offset.y)
-                            },
-                            onDragEnd = onDragEnd,
-                            onDragCancel = onDragEnd
-                        )
-                    }
-            )
-
+            if (isAdmin) {
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = "Reorder",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .size(20.dp)
+                        .pointerInput(Unit) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = { onDragStart() },
+                                onDrag = { change, offset -> change.consume(); onDrag(offset.y) },
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragEnd
+                            )
+                        }
+                )
+            } else {
+                Spacer(Modifier.width(16.dp))
+            }
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, style = MaterialTheme.typography.bodyLarge)
                 if (item.isClaimed) {
                     item.claimEntries.forEach { entry ->
-                        val label = if (entry.quantity.isNotBlank()) "${entry.name}: ${entry.quantity}"
-                                    else entry.name
+                        val label = if (entry.quantity.isNotBlank()) "${entry.name}: ${entry.quantity}" else entry.name
                         Text(
                             label,
                             style = MaterialTheme.typography.bodySmall,
@@ -498,7 +475,6 @@ private fun SupplyItemRow(
                     )
                 }
             }
-
             val names = item.claimedNames
             if (names.isNotEmpty()) {
                 SuggestionChip(
@@ -506,10 +482,7 @@ private fun SupplyItemRow(
                     label = { Text(if (names.size == 1) names.first() else "${names.size} claimed") }
                 )
             } else {
-                AssistChip(
-                    onClick = onClick,
-                    label = { Text("Unclaimed") }
-                )
+                AssistChip(onClick = onClick, label = { Text("Unclaimed") })
             }
         }
     }
@@ -518,57 +491,48 @@ private fun SupplyItemRow(
 @Composable
 private fun ClaimDialog(
     item: SupplyItem,
-    people: List<Person>,
+    members: List<TripMember>,
     onDismiss: () -> Unit,
-    onClaim: (Person, String) -> Unit
+    onClaim: (TripMember, String) -> Unit
 ) {
-    var selectedPerson by remember { mutableStateOf<Person?>(null) }
+    var selectedMember by remember { mutableStateOf<TripMember?>(null) }
     var quantity by remember { mutableStateOf(item.quantity) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (selectedPerson == null) "Who's bringing this?" else "Claim ${item.name}") },
+        title = { Text(if (selectedMember == null) "Who's bringing this?" else "Claim ${item.name}") },
         text = {
-            if (people.isEmpty()) {
+            if (members.isEmpty()) {
                 Text("Add some people first!")
-            } else if (selectedPerson == null) {
+            } else if (selectedMember == null) {
                 Column {
-                    people.forEach { person ->
+                    members.forEach { member ->
                         TextButton(
-                            onClick = { selectedPerson = person },
+                            onClick = { selectedMember = member },
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                person.name,
-                                modifier = Modifier.fillMaxWidth(),
-                                style = MaterialTheme.typography.bodyLarge
-                            )
+                            Text(member.displayName, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
             } else {
                 Column {
-                    Text("${selectedPerson!!.name} is bringing this")
+                    Text("${selectedMember!!.displayName} is bringing this")
                     Spacer(Modifier.height(12.dp))
-                    QuantityField(
-                        value = quantity,
-                        onValueChange = { quantity = it }
-                    )
+                    QuantityField(value = quantity, onValueChange = { quantity = it })
                 }
             }
         },
         confirmButton = {
-            if (selectedPerson != null) {
-                Button(onClick = { onClaim(selectedPerson!!, quantity.trim()) }) {
-                    Text("Claim")
-                }
+            if (selectedMember != null) {
+                Button(onClick = { onClaim(selectedMember!!, quantity.trim()) }) { Text("Claim") }
             } else {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
             }
         },
         dismissButton = {
-            if (selectedPerson != null) {
-                TextButton(onClick = { selectedPerson = null }) { Text("Back") }
+            if (selectedMember != null) {
+                TextButton(onClick = { selectedMember = null }) { Text("Back") }
             }
         }
     )
@@ -577,8 +541,9 @@ private fun ClaimDialog(
 @Composable
 private fun ManageClaimsDialog(
     item: SupplyItem,
+    members: List<TripMember>,
     onDismiss: () -> Unit,
-    onRemoveClaim: (String) -> Unit,
+    onRemoveClaim: (uid: String, displayName: String) -> Unit,
     onAddMore: () -> Unit
 ) {
     AlertDialog(
@@ -589,6 +554,7 @@ private fun ManageClaimsDialog(
                 Text("Claimed by:", style = MaterialTheme.typography.labelMedium)
                 Spacer(Modifier.height(8.dp))
                 item.claimEntries.forEach { entry ->
+                    val member = members.find { it.displayName == entry.name }
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -603,19 +569,15 @@ private fun ManageClaimsDialog(
                                 )
                             }
                         }
-                        TextButton(onClick = { onRemoveClaim(entry.name) }) {
-                            Text("Remove")
-                        }
+                        TextButton(onClick = {
+                            onRemoveClaim(member?.uid ?: "", entry.name)
+                        }) { Text("Remove") }
                     }
                 }
             }
         },
-        confirmButton = {
-            Button(onClick = onAddMore) { Text("Add Person") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Done") }
-        }
+        confirmButton = { Button(onClick = onAddMore) { Text("Add Person") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } }
     )
 }
 
@@ -636,7 +598,6 @@ private fun AddSupplyItemSheet(
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
             Text("Add Supply Item", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
-
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -649,7 +610,6 @@ private fun AddSupplyItemSheet(
                 modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
             )
             Spacer(Modifier.height(12.dp))
-
             Text("Category", style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(4.dp))
             SUPPLY_CATEGORIES.chunked(3).forEach { row ->
@@ -667,17 +627,9 @@ private fun AddSupplyItemSheet(
                 }
             }
             Spacer(Modifier.height(12.dp))
-
-            QuantityField(
-                value = quantity,
-                onValueChange = { quantity = it }
-            )
+            QuantityField(value = quantity, onValueChange = { quantity = it })
             Spacer(Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = onDismiss) { Text("Cancel") }
                 Spacer(Modifier.width(8.dp))
                 Button(
@@ -694,10 +646,7 @@ private fun AddSupplyItemSheet(
 }
 
 @Composable
-private fun QuantityField(
-    value: String,
-    onValueChange: (String) -> Unit
-) {
+private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
     Column {
         Text("Quantity", style = MaterialTheme.typography.labelMedium)
         Spacer(Modifier.height(4.dp))
