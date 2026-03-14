@@ -1,6 +1,8 @@
 package com.example.brohouse.ui
 
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.brohouse.MainViewModel
@@ -33,12 +36,12 @@ import java.util.Locale
 @Composable
 fun TripDashboard(
     viewModel: MainViewModel,
-    onNavigateToHouseDetails: () -> Unit,
     onNavigateToSupplies: () -> Unit
 ) {
     val people by viewModel.people.collectAsState()
     val houseDetails by viewModel.houseDetails.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
+    val context = LocalContext.current
 
     var showAddPerson by remember { mutableStateOf(false) }
     var editNightsPerson by remember { mutableStateOf<Person?>(null) }
@@ -64,7 +67,13 @@ fun TripDashboard(
                 HouseDetailsCard(
                     details = houseDetails,
                     guestCount = people.size,
-                    onClick = onNavigateToHouseDetails,
+                    onClick = {
+                        val url = houseDetails?.houseURL?.trim()
+                        if (!url.isNullOrBlank()) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }

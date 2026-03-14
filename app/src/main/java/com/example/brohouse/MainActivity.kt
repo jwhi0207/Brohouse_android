@@ -26,7 +26,6 @@ class MainActivity : ComponentActivity() {
                     composable("main") {
                         TripDashboard(
                             viewModel = vm,
-                            onNavigateToHouseDetails = { navController.navigate("house_details") },
                             onNavigateToSupplies = { navController.navigate("supplies") }
                         )
                     }
