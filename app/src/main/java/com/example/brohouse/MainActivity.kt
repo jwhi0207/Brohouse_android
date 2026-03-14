@@ -9,7 +9,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.brohouse.ui.HouseDetailsScreen
-import com.example.brohouse.ui.MainScreen
+import com.example.brohouse.ui.TripDashboard
 import com.example.brohouse.ui.SuppliesScreen
 import com.example.brohouse.ui.theme.BrohouseTheme
 
@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(navController = navController, startDestination = "main") {
                     composable("main") {
-                        MainScreen(
+                        TripDashboard(
                             viewModel = vm,
                             onNavigateToHouseDetails = { navController.navigate("house_details") },
                             onNavigateToSupplies = { navController.navigate("supplies") }

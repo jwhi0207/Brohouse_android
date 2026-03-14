@@ -31,7 +31,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
+fun TripDashboard(
     viewModel: MainViewModel,
     onNavigateToHouseDetails: () -> Unit,
     onNavigateToSupplies: () -> Unit
