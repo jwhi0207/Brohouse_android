@@ -1,56 +1,68 @@
-package com.example.brohouse.ui
+package com.thiccbokki.brohouse.ui
 
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NightlightRound
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.brohouse.MainViewModel
-import com.example.brohouse.data.HouseDetails
-import com.example.brohouse.data.Person
-import com.example.brohouse.data.SupplyItem
+import coil.compose.AsyncImage
+import com.thiccbokki.brohouse.TripViewModel
+import com.thiccbokki.brohouse.data.HouseDetails
+import com.thiccbokki.brohouse.data.SupplyItem
+import com.thiccbokki.brohouse.data.TripMember
 import java.text.NumberFormat
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    viewModel: MainViewModel,
+    viewModel: TripViewModel,
+    isAdmin: Boolean,
     onNavigateToHouseDetails: () -> Unit,
-    onNavigateToSupplies: () -> Unit
+    onNavigateToSupplies: () -> Unit,
+    onNavigateToInvite: () -> Unit,
+    onNavigateBack: () -> Unit
 ) {
-    val people by viewModel.people.collectAsState()
-    val houseDetails by viewModel.houseDetails.collectAsState()
+    val members by viewModel.members.collectAsState()
+    val trip by viewModel.trip.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
 
-    var showAddPerson by remember { mutableStateOf(false) }
-    var editNightsPerson by remember { mutableStateOf<Person?>(null) }
-    var addPaymentPerson by remember { mutableStateOf<Person?>(null) }
+    var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
+    var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
+
+    val houseDetails = trip?.let {
+        HouseDetails(
+            houseURL = it.houseURL,
+            totalNights = it.totalNights,
+            totalCost = it.totalCost,
+            thumbnailURL = it.thumbnailURL
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Debt Tracker") },
+                title = { Text(trip?.name ?: "Debt Tracker") },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { showAddPerson = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Person")
+                    if (isAdmin) {
+                        IconButton(onClick = onNavigateToInvite) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = "Invite People")
+                        }
                     }
                 }
             )
@@ -63,7 +75,7 @@ fun MainScreen(
             item {
                 HouseDetailsCard(
                     details = houseDetails,
-                    guestCount = people.size,
+                    guestCount = members.size,
                     onClick = onNavigateToHouseDetails,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
@@ -77,10 +89,11 @@ fun MainScreen(
                 )
             }
 
-            if (people.isEmpty()) {
+            if (members.isEmpty()) {
                 item {
                     Text(
-                        text = "Nobody wants to go T_T",
+                        text = if (isAdmin) "Nobody wants to go T_T\nTap the person icon to invite friends"
+                               else "Nobody wants to go T_T",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         textAlign = TextAlign.Center,
@@ -90,11 +103,12 @@ fun MainScreen(
                     )
                 }
             } else {
-                items(people, key = { it.id }) { person ->
-                    PersonRowView(
-                        person = person,
-                        onEditNights = { editNightsPerson = person },
-                        onAddPayment = { addPaymentPerson = person }
+                items(members, key = { it.uid }) { member ->
+                    MemberRowView(
+                        member = member,
+                        isAdmin = isAdmin,
+                        onEditNights = { editNightsMember = member },
+                        onAddPayment = { addPaymentMember = member }
                     )
                     HorizontalDivider(modifier = Modifier.padding(start = 80.dp))
                 }
@@ -102,42 +116,33 @@ fun MainScreen(
         }
     }
 
-    if (showAddPerson) {
-        AddPersonSheet(
-            onDismiss = { showAddPerson = false },
-            onSave = { name ->
-                viewModel.addPerson(name)
-                showAddPerson = false
-            }
-        )
-    }
-
-    editNightsPerson?.let { person ->
+    editNightsMember?.let { member ->
         EditNightsSheet(
-            currentNights = person.nightsStayed,
-            onDismiss = { editNightsPerson = null },
+            currentNights = member.nightsStayed,
+            onDismiss = { editNightsMember = null },
             onSave = { nights ->
-                viewModel.updateNights(person, nights)
-                editNightsPerson = null
+                viewModel.updateNights(member, nights)
+                editNightsMember = null
             }
         )
     }
 
-    addPaymentPerson?.let { person ->
+    addPaymentMember?.let { member ->
         AddPaymentSheet(
-            currentOwed = person.moneyOwed,
-            onDismiss = { addPaymentPerson = null },
+            currentOwed = member.moneyOwed,
+            onDismiss = { addPaymentMember = null },
             onSave = { amount ->
-                viewModel.addPayment(person, amount)
-                addPaymentPerson = null
+                viewModel.addPayment(member, amount)
+                addPaymentMember = null
             }
         )
     }
 }
 
 @Composable
-fun PersonRowView(
-    person: Person,
+fun MemberRowView(
+    member: TripMember,
+    isAdmin: Boolean,
     onEditNights: () -> Unit,
     onAddPayment: () -> Unit
 ) {
@@ -149,12 +154,11 @@ fun PersonRowView(
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarView(seed = person.avatarSeed)
-
+        AvatarView(seed = member.avatarSeed)
         Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(person.name, style = MaterialTheme.typography.titleMedium)
+            Text(member.displayName, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,7 +169,7 @@ fun PersonRowView(
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(Modifier.width(3.dp))
-                    val n = person.nightsStayed
+                    val n = member.nightsStayed
                     Text(
                         "$n ${if (n == 1) "night" else "nights"}",
                         style = MaterialTheme.typography.bodySmall,
@@ -180,7 +184,7 @@ fun PersonRowView(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        NumberFormat.getCurrencyInstance(Locale.US).format(person.moneyOwed),
+                        NumberFormat.getCurrencyInstance(Locale.US).format(member.moneyOwed),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
@@ -188,25 +192,27 @@ fun PersonRowView(
             }
         }
 
-        Box {
-            IconButton(onClick = { showMenu = true }) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = "More options",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-            DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                DropdownMenuItem(
-                    text = { Text("Edit Nights") },
-                    leadingIcon = { Icon(Icons.Filled.NightlightRound, null) },
-                    onClick = { showMenu = false; onEditNights() }
-                )
-                DropdownMenuItem(
-                    text = { Text("Add Payment") },
-                    leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
-                    onClick = { showMenu = false; onAddPayment() }
-                )
+        if (isAdmin) {
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Edit Nights") },
+                        leadingIcon = { Icon(Icons.Filled.NightlightRound, null) },
+                        onClick = { showMenu = false; onEditNights() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Add Payment") },
+                        leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
+                        onClick = { showMenu = false; onAddPayment() }
+                    )
+                }
             }
         }
     }
@@ -221,13 +227,7 @@ fun HouseDetailsCard(
 ) {
     val totalNights = details?.totalNights ?: 0
     val totalCost = details?.totalCost ?: 0.0
-    val thumbnailData = details?.thumbnailData
-
-    val bitmap = remember(thumbnailData) {
-        thumbnailData?.let { data ->
-            runCatching { BitmapFactory.decodeByteArray(data, 0, data.size)?.asImageBitmap() }.getOrNull()
-        }
-    }
+    val thumbnailURL = details?.thumbnailURL
 
     Card(
         modifier = modifier
@@ -249,9 +249,9 @@ fun HouseDetailsCard(
                     .height(160.dp),
                 contentAlignment = Alignment.Center
             ) {
-                if (bitmap != null) {
-                    Image(
-                        bitmap = bitmap,
+                if (thumbnailURL != null) {
+                    AsyncImage(
+                        model = thumbnailURL,
                         contentDescription = "House photo",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -316,7 +316,7 @@ fun SuppliesCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val unclaimed = supplyItems.count { it.claimedByPersonId == null }
+    val unclaimed = supplyItems.count { !it.isClaimed }
 
     Card(
         modifier = modifier

@@ -1,4 +1,4 @@
-package com.example.brohouse.ui
+package com.thiccbokki.brohouse.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border

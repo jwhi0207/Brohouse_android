@@ -1,4 +1,4 @@
-package com.example.brohouse.ui.theme
+package com.thiccbokki.brohouse.ui.theme
 
 import android.app.Activity
 import android.os.Build

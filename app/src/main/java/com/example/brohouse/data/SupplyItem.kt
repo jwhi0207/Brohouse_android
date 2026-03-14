@@ -1,17 +1,13 @@
-package com.example.brohouse.data
-
-import androidx.room.*
-import kotlinx.coroutines.flow.Flow
+package com.thiccbokki.brohouse.data
 
 data class ClaimEntry(val name: String, val quantity: String)
 
-@Entity(tableName = "supply_items")
 data class SupplyItem(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val name: String,
-    val category: String,
+    val id: String = "",
+    val name: String = "",
+    val category: String = "",
     val quantity: String = "",
-    val claimedByPersonId: Long? = null,
+    val claimedByUids: List<String> = emptyList(),
     val claimedByName: String? = null,
     val sortOrder: Int = 0
 ) {
@@ -27,18 +23,15 @@ data class SupplyItem(
         get() {
             val names = claimedNames
             if (names.isEmpty()) return emptyList()
-            // Try structured parse
             val parsed = quantity.split("|").mapNotNull { entry ->
                 val eq = entry.indexOf('=')
                 if (eq > 0) ClaimEntry(entry.substring(0, eq).trim(), entry.substring(eq + 1).trim())
                 else null
             }
             if (parsed.isNotEmpty() && parsed.any { it.name in names }) return parsed
-            // Fallback: shared quantity
             return names.map { ClaimEntry(it, quantity) }
         }
 
-    /** The plain quantity string for display when unclaimed */
     val displayQuantity: String
         get() = if (!isClaimed) quantity
                 else claimEntries.joinToString(", ") { "${it.name}: ${it.quantity}" }
@@ -47,58 +40,37 @@ data class SupplyItem(
         return claimEntries.find { it.name == personName }?.quantity ?: quantity
     }
 
-    fun addClaim(person: Person, personQuantity: String): SupplyItem {
+    fun addClaim(member: TripMember, personQuantity: String): SupplyItem {
+        val currentUids = claimedByUids.toMutableList()
+        if (member.uid !in currentUids) currentUids.add(member.uid)
+
         val currentNames = claimedNames.toMutableList()
-        if (person.name !in currentNames) currentNames.add(person.name)
-        // Build per-person quantity entries
+        if (member.displayName !in currentNames) currentNames.add(member.displayName)
+
         val entries = claimEntries.toMutableList()
-        entries.removeAll { it.name == person.name }
-        if (personQuantity.isNotBlank()) {
-            entries.add(ClaimEntry(person.name, personQuantity))
-        } else {
-            entries.add(ClaimEntry(person.name, ""))
-        }
+        entries.removeAll { it.name == member.displayName }
+        entries.add(ClaimEntry(member.displayName, personQuantity))
+
         val newQuantity = entries.joinToString("|") { "${it.name}=${it.quantity}" }
         return copy(
-            claimedByPersonId = person.id,
+            claimedByUids = currentUids,
             claimedByName = currentNames.joinToString(", "),
             quantity = newQuantity
         )
     }
 
-    fun removeClaim(personName: String): SupplyItem {
-        val currentNames = claimedNames.toMutableList()
-        currentNames.remove(personName)
-        val entries = claimEntries.toMutableList()
-        entries.removeAll { it.name == personName }
-        return if (currentNames.isEmpty()) {
-            copy(claimedByPersonId = null, claimedByName = null, quantity = "")
+    fun removeClaim(uid: String, displayName: String): SupplyItem {
+        val currentUids = claimedByUids.toMutableList().also { it.remove(uid) }
+        val currentNames = claimedNames.toMutableList().also { it.remove(displayName) }
+        val entries = claimEntries.toMutableList().also { e -> e.removeAll { it.name == displayName } }
+        return if (currentUids.isEmpty()) {
+            copy(claimedByUids = emptyList(), claimedByName = null, quantity = "")
         } else {
             copy(
+                claimedByUids = currentUids,
                 claimedByName = currentNames.joinToString(", "),
                 quantity = entries.joinToString("|") { "${it.name}=${it.quantity}" }
             )
         }
     }
-}
-
-@Dao
-interface SupplyItemDao {
-    @Query("SELECT * FROM supply_items ORDER BY category ASC, sortOrder ASC, name ASC")
-    fun getAllSupplyItems(): Flow<List<SupplyItem>>
-
-    @Query("SELECT COALESCE(MAX(sortOrder), -1) FROM supply_items WHERE category = :category")
-    suspend fun getMaxSortOrder(category: String): Int
-
-    @Insert
-    suspend fun insert(item: SupplyItem)
-
-    @Update
-    suspend fun update(item: SupplyItem)
-
-    @Update
-    suspend fun updateAll(items: List<SupplyItem>)
-
-    @Delete
-    suspend fun delete(item: SupplyItem)
 }

@@ -1,4 +1,4 @@
-package com.example.brohouse
+package com.thiccbokki.brohouse
 
 import org.junit.Test
 
