@@ -56,7 +56,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _authState.value = AuthState.Loading
         try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
-            val user = result.user ?: return@launch
+            val user = result.user ?: run {
+                _authState.value = AuthState.LoggedOut
+                return@launch
+            }
             userRepository.ensureRoleSet(user.uid, user.email ?: "")
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("users").document(user.uid).get().await()
@@ -73,7 +76,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 avatarSeed = profile.avatarSeed
             )
         } catch (e: Exception) {
+            Log.e("AuthViewModel", "Sign-in failed: ${e::class.simpleName} — ${e.message}", e)
             _error.value = e.message ?: "Sign in failed"
+            _authState.value = if (auth.currentUser != null) AuthState.LoggedIn(auth.currentUser!!.uid) else AuthState.LoggedOut
         }
     }
 
@@ -81,7 +86,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         _authState.value = AuthState.Loading
         try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
-            val user = result.user ?: return@launch
+            val user = result.user ?: run {
+                _authState.value = AuthState.LoggedOut
+                return@launch
+            }
             userRepository.createUserProfile(user.uid, displayName, email)
             // Fetch the generated avatar seed to pass to invite acceptance
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
@@ -89,7 +97,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val avatarSeed = doc.getLong("avatarSeed") ?: 0L
             userRepository.checkAndAcceptPendingInvites(email, user.uid, displayName, avatarSeed)
         } catch (e: Exception) {
+            Log.e("AuthViewModel", "Registration failed: ${e::class.simpleName} — ${e.message}", e)
             _error.value = e.message ?: "Registration failed"
+            _authState.value = if (auth.currentUser != null) AuthState.LoggedIn(auth.currentUser!!.uid) else AuthState.LoggedOut
         }
     }
 

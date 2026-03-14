@@ -103,7 +103,8 @@ fun BrohouseApp() {
                 onNavigateToHouseDetails = { navController.navigate("trip/$tripId/house_details") },
                 onNavigateToSupplies = { navController.navigate("trip/$tripId/supplies") },
                 onNavigateToInvite = { navController.navigate("trip/$tripId/invite") },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onSignOut = { authViewModel.signOut() }
             )
         }
 

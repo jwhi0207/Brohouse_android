@@ -31,7 +31,8 @@ fun MainScreen(
     onNavigateToHouseDetails: () -> Unit,
     onNavigateToSupplies: () -> Unit,
     onNavigateToInvite: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onSignOut: () -> Unit = {}
 ) {
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
@@ -39,6 +40,7 @@ fun MainScreen(
 
     var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
     var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     val houseDetails = trip?.let {
         HouseDetails(
@@ -62,6 +64,21 @@ fun MainScreen(
                     if (isAdmin) {
                         IconButton(onClick = onNavigateToInvite) {
                             Icon(Icons.Default.PersonAdd, contentDescription = "Invite People")
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Sign Out") },
+                                leadingIcon = { Icon(Icons.Default.Logout, contentDescription = null) },
+                                onClick = { showOverflowMenu = false; onSignOut() }
+                            )
                         }
                     }
                 }
