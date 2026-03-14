@@ -18,7 +18,7 @@ import com.thiccbokki.brohouse.auth.AuthState
 import com.thiccbokki.brohouse.auth.AuthViewModel
 import com.thiccbokki.brohouse.ui.HouseDetailsScreen
 import com.thiccbokki.brohouse.ui.InviteScreen
-import com.thiccbokki.brohouse.ui.MainScreen
+import com.thiccbokki.brohouse.ui.TripDashboard
 import com.thiccbokki.brohouse.ui.SuppliesScreen
 import com.thiccbokki.brohouse.ui.TripListScreen
 import com.thiccbokki.brohouse.ui.auth.LoginScreen
@@ -97,13 +97,14 @@ fun BrohouseApp() {
         composable("trip/{tripId}") { backStackEntry ->
             val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
             val tripViewModel: TripViewModel = viewModel()
-            MainScreen(
+            TripDashboard(
                 viewModel = tripViewModel,
                 isAdmin = isAdmin,
                 onNavigateToHouseDetails = { navController.navigate("trip/$tripId/house_details") },
                 onNavigateToSupplies = { navController.navigate("trip/$tripId/supplies") },
                 onNavigateToInvite = { navController.navigate("trip/$tripId/invite") },
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onSignOut = { authViewModel.signOut() }
             )
         }
 

@@ -1,5 +1,7 @@
 package com.thiccbokki.brohouse.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -25,20 +28,23 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(
+fun TripDashboard(
     viewModel: TripViewModel,
     isAdmin: Boolean,
     onNavigateToHouseDetails: () -> Unit,
     onNavigateToSupplies: () -> Unit,
     onNavigateToInvite: () -> Unit,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onSignOut: () -> Unit = {}
 ) {
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
+    val context = LocalContext.current
 
     var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
     var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     val houseDetails = trip?.let {
         HouseDetails(
@@ -64,6 +70,21 @@ fun MainScreen(
                             Icon(Icons.Default.PersonAdd, contentDescription = "Invite People")
                         }
                     }
+                    Box {
+                        IconButton(onClick = { showOverflowMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                        }
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Sign Out") },
+                                leadingIcon = { Icon(Icons.Default.Logout, contentDescription = null) },
+                                onClick = { showOverflowMenu = false; onSignOut() }
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -76,7 +97,13 @@ fun MainScreen(
                 HouseDetailsCard(
                     details = houseDetails,
                     guestCount = members.size,
-                    onClick = onNavigateToHouseDetails,
+                    onClick = {
+                        val url = houseDetails?.houseURL?.trim()
+                        if (!url.isNullOrBlank()) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                            context.startActivity(intent)
+                        }
+                    },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
