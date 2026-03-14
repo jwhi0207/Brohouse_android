@@ -8,6 +8,7 @@ import com.thiccbokki.brohouse.data.SupplyItem
 import com.thiccbokki.brohouse.data.TripMember
 import com.thiccbokki.brohouse.data.TripRepository
 import com.google.firebase.auth.FirebaseAuth
+import android.util.Log
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -53,23 +54,43 @@ class TripViewModel(
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
-        repo.addSupplyItem(tripId, name, category, quantity)
+        try {
+            repo.addSupplyItem(tripId, name, category, quantity)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "addSupplyItem failed", e)
+        }
     }
 
     fun reorderSupplyItems(category: String, reorderedItems: List<SupplyItem>) = viewModelScope.launch {
-        repo.updateSupplyItems(tripId, reorderedItems)
+        try {
+            repo.updateSupplyItems(tripId, reorderedItems)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "reorderSupplyItems failed", e)
+        }
     }
 
     fun claimSupplyItem(item: SupplyItem, member: TripMember, quantity: String = "") = viewModelScope.launch {
-        repo.updateSupplyItem(tripId, item.addClaim(member, quantity))
+        try {
+            repo.updateSupplyItem(tripId, item.addClaim(member, quantity))
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "claimSupplyItem failed", e)
+        }
     }
 
     fun unclaimSupplyItem(item: SupplyItem, uid: String, displayName: String) = viewModelScope.launch {
-        repo.updateSupplyItem(tripId, item.removeClaim(uid, displayName))
+        try {
+            repo.updateSupplyItem(tripId, item.removeClaim(uid, displayName))
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "unclaimSupplyItem failed", e)
+        }
     }
 
     fun deleteSupplyItem(item: SupplyItem) = viewModelScope.launch {
-        repo.deleteSupplyItem(tripId, item.id)
+        try {
+            repo.deleteSupplyItem(tripId, item.id)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "deleteSupplyItem failed", e)
+        }
     }
 
     // ─── House Details ─────────────────────────────────────────────────────────

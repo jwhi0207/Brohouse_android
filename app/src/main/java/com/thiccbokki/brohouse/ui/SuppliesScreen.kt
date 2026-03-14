@@ -5,9 +5,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,39 +26,47 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.thiccbokki.brohouse.TripViewModel
 import com.thiccbokki.brohouse.data.SupplyItem
 import com.thiccbokki.brohouse.data.TripMember
-import com.thiccbokki.brohouse.data.ClaimEntry
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Drugs & Paraphernalia", "Other")
 
-val QUANTITY_PRESETS = listOf("enough", "big ole box", "costco")
+private val PICKER_NUMBERS = (1..99).map { it.toString() }
+private val PICKER_UNITS = listOf(
+    "", "pieces", "dozen", "packs", "boxes",
+    "bags", "cases", "bottles", "cans", "lbs", "oz", "gallons", "liters"
+)
+private val QUANTITY_PATTERN = Regex("""^(\d{1,2})\s*(.*)$""")
 
 data class QuickAddItem(val name: String, val category: String, val quantity: String = "")
 
 val QUICK_ADD_ITEMS = listOf(
-    QuickAddItem("Burgers", "Food", "enough"),
-    QuickAddItem("Buns", "Food", "enough"),
-    QuickAddItem("Hot Dogs", "Food", "enough"),
-    QuickAddItem("Hot Dog Buns", "Food", "enough"),
-    QuickAddItem("Chili", "Food", "enough"),
+    QuickAddItem("Burgers", "Food"),
+    QuickAddItem("Buns", "Food"),
+    QuickAddItem("Hot Dogs", "Food"),
+    QuickAddItem("Hot Dog Buns", "Food"),
+    QuickAddItem("Chili", "Food"),
     QuickAddItem("Ketchup", "Food"),
     QuickAddItem("Mustard", "Food"),
-    QuickAddItem("Eggs", "Food", "enough"),
-    QuickAddItem("Bacon", "Food", "enough"),
+    QuickAddItem("Eggs", "Food"),
+    QuickAddItem("Bacon", "Food"),
     QuickAddItem("Coffee", "Food"),
-    QuickAddItem("Garbage Bags", "Disposables", "big ole box"),
-    QuickAddItem("Plastic Cups", "Disposables", "costco"),
-    QuickAddItem("Plastic Utensils", "Disposables", "costco"),
-    QuickAddItem("Bluetooth Speaker", "Entertainment", "1"),
+    QuickAddItem("Garbage Bags", "Disposables"),
+    QuickAddItem("Plastic Cups", "Disposables"),
+    QuickAddItem("Plastic Utensils", "Disposables"),
+    QuickAddItem("Bluetooth Speaker", "Entertainment"),
     QuickAddItem("Weed", "Drugs & Paraphernalia"),
     QuickAddItem("Shrooms", "Drugs & Paraphernalia"),
 )
@@ -65,7 +75,6 @@ val QUICK_ADD_ITEMS = listOf(
 @Composable
 fun SuppliesScreen(
     viewModel: TripViewModel,
-    isAdmin: Boolean,
     onNavigateBack: () -> Unit
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
@@ -99,10 +108,8 @@ fun SuppliesScreen(
                     }
                 },
                 actions = {
-                    if (isAdmin) {
-                        IconButton(onClick = { showAddSheet = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "Add Item")
-                        }
+                    IconButton(onClick = { showAddSheet = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Item")
                     }
                 }
             )
@@ -117,22 +124,41 @@ fun SuppliesScreen(
             contentPadding = innerPadding,
             modifier = Modifier.fillMaxSize()
         ) {
-            // Quick Add — admin only
-            if (isAdmin && availableQuickAdds.isNotEmpty()) {
+            if (availableQuickAdds.isNotEmpty()) {
                 item(key = "quick_add") {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text(
-                            "Quick Add",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        availableQuickAdds.chunked(3).forEach { row ->
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.padding(bottom = 8.dp)
+                    var quickAddExpanded by remember { mutableStateOf(true) }
+                    val caretRotation by animateFloatAsState(
+                        targetValue = if (quickAddExpanded) 0f else -90f,
+                        label = "quick_add_caret"
+                    )
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { quickAddExpanded = !quickAddExpanded }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = if (quickAddExpanded) "Collapse" else "Expand",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                modifier = Modifier.size(20.dp).rotate(caretRotation)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Quick Add",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        if (quickAddExpanded) {
+                            SimpleFlowRow(
+                                horizontalSpacing = 8.dp,
+                                verticalSpacing = 8.dp,
+                                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)
                             ) {
-                                row.forEach { quickItem ->
+                                availableQuickAdds.forEach { quickItem ->
                                     ElevatedFilterChip(
                                         selected = false,
                                         onClick = {
@@ -155,16 +181,15 @@ fun SuppliesScreen(
                                 }
                             }
                         }
+                        HorizontalDivider()
                     }
-                    HorizontalDivider(modifier = Modifier.padding(top = 4.dp))
                 }
             }
 
             if (supplyItems.isEmpty()) {
                 item(key = "empty") {
                     Text(
-                        if (isAdmin) "No supplies yet — tap + or quick-add above!"
-                        else "No supplies yet",
+                        "No supplies yet — tap + or quick-add above!",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier
@@ -194,7 +219,6 @@ fun SuppliesScreen(
                     item(key = "category_items_$category") {
                         ReorderableCategory(
                             items = categoryItems,
-                            isAdmin = isAdmin,
                             onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
                             onClaim = { claimItem = it },
                             onManageClaims = { manageClaimItem = it },
@@ -206,8 +230,12 @@ fun SuppliesScreen(
         }
     }
 
-    if (isAdmin && showAddSheet) {
+    if (showAddSheet) {
+        val existingNamesForSheet = remember(supplyItems) {
+            supplyItems.map { it.name.lowercase() }.toSet()
+        }
         AddSupplyItemSheet(
+            existingNames = existingNamesForSheet,
             onDismiss = { showAddSheet = false },
             onSave = { name, category, quantity ->
                 viewModel.addSupplyItem(name, category, quantity)
@@ -245,8 +273,7 @@ fun SuppliesScreen(
         )
     }
 
-    if (isAdmin) {
-        deleteItem?.let { item ->
+    deleteItem?.let { item ->
             AlertDialog(
                 onDismissRequest = { deleteItem = null },
                 title = { Text("Delete Item") },
@@ -262,7 +289,6 @@ fun SuppliesScreen(
                 }
             )
         }
-    }
 }
 
 @Composable
@@ -310,7 +336,6 @@ private fun CategoryHeader(
 @Composable
 private fun ReorderableCategory(
     items: List<SupplyItem>,
-    isAdmin: Boolean,
     onReorder: (List<SupplyItem>) -> Unit,
     onClaim: (SupplyItem) -> Unit,
     onManageClaims: (SupplyItem) -> Unit,
@@ -327,7 +352,6 @@ private fun ReorderableCategory(
             key(item.id) {
                 SwipeToDismissItem(
                     item = item,
-                    isAdmin = isAdmin,
                     isDragging = isDragging,
                     dragOffset = if (isDragging) dragOffset else 0f,
                     onClaim = { onClaim(item) },
@@ -359,7 +383,6 @@ private fun ReorderableCategory(
 @Composable
 private fun SwipeToDismissItem(
     item: SupplyItem,
-    isAdmin: Boolean,
     isDragging: Boolean,
     dragOffset: Float,
     onClaim: () -> Unit,
@@ -371,7 +394,7 @@ private fun SwipeToDismissItem(
 ) {
     val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { value ->
-            if (isAdmin && value == SwipeToDismissBoxValue.EndToStart) onDelete()
+            if (value == SwipeToDismissBoxValue.EndToStart) onDelete()
             false
         }
     )
@@ -384,26 +407,23 @@ private fun SwipeToDismissItem(
         SwipeToDismissBox(
             state = dismissState,
             backgroundContent = {
-                if (isAdmin) {
-                    val color by animateColorAsState(
-                        targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart)
-                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
-                        label = "swipe_bg"
-                    )
-                    Box(
-                        modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.CenterEnd
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onError)
-                    }
+                val color by animateColorAsState(
+                    targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart)
+                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
+                    label = "swipe_bg"
+                )
+                Box(
+                    modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onError)
                 }
             },
             enableDismissFromStartToEnd = false,
-            enableDismissFromEndToStart = isAdmin && !isDragging
+            enableDismissFromEndToStart = !isDragging
         ) {
             SupplyItemRow(
                 item = item,
-                isAdmin = isAdmin,
                 isDragging = isDragging,
                 onClick = onClaim,
                 onChipClick = onManageClaims,
@@ -418,7 +438,6 @@ private fun SwipeToDismissItem(
 @Composable
 private fun SupplyItemRow(
     item: SupplyItem,
-    isAdmin: Boolean,
     isDragging: Boolean,
     onClick: () -> Unit,
     onChipClick: () -> Unit,
@@ -436,26 +455,22 @@ private fun SupplyItemRow(
                 .padding(start = 4.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isAdmin) {
-                Icon(
-                    Icons.Default.DragHandle,
-                    contentDescription = "Reorder",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
-                    modifier = Modifier
-                        .padding(8.dp)
-                        .size(20.dp)
-                        .pointerInput(Unit) {
-                            detectDragGesturesAfterLongPress(
-                                onDragStart = { onDragStart() },
-                                onDrag = { change, offset -> change.consume(); onDrag(offset.y) },
-                                onDragEnd = onDragEnd,
-                                onDragCancel = onDragEnd
-                            )
-                        }
-                )
-            } else {
-                Spacer(Modifier.width(16.dp))
-            }
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = "Reorder",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(20.dp)
+                    .pointerInput(Unit) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDrag = { change, offset -> change.consume(); onDrag(offset.y) },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragEnd
+                        )
+                    }
+            )
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.name, style = MaterialTheme.typography.bodyLarge)
                 if (item.isClaimed) {
@@ -584,6 +599,7 @@ private fun ManageClaimsDialog(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddSupplyItemSheet(
+    existingNames: Set<String>,
     onDismiss: () -> Unit,
     onSave: (name: String, category: String, quantity: String) -> Unit
 ) {
@@ -593,6 +609,7 @@ private fun AddSupplyItemSheet(
     var quantity by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
     val trimmedName = name.trim()
+    val isDuplicate = trimmedName.lowercase() in existingNames
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
@@ -603,6 +620,8 @@ private fun AddSupplyItemSheet(
                 onValueChange = { name = it },
                 label = { Text("Item Name") },
                 singleLine = true,
+                isError = isDuplicate,
+                supportingText = if (isDuplicate) {{ Text("\"$trimmedName\" is already on the list") }} else null,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Words,
                     autoCorrectEnabled = false
@@ -634,7 +653,7 @@ private fun AddSupplyItemSheet(
                 Spacer(Modifier.width(8.dp))
                 Button(
                     onClick = { onSave(trimmedName, selectedCategory, quantity.trim()) },
-                    enabled = trimmedName.isNotEmpty()
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate
                 ) { Text("Save") }
             }
         }
@@ -647,26 +666,213 @@ private fun AddSupplyItemSheet(
 
 @Composable
 private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
+    // Try to parse existing value back into number + unit
+    val match = remember(value) { QUANTITY_PATTERN.matchEntire(value.trim()) }
+    val parsedNumber = match?.groupValues?.get(1)?.toIntOrNull()
+    val parsedUnit = match?.groupValues?.get(2)?.trim()?.lowercase()
+    val unitIndex = if (parsedUnit != null) PICKER_UNITS.indexOfFirst { it == parsedUnit }.takeIf { it >= 0 } else null
+    val canUsePicker = parsedNumber != null && parsedNumber in 1..99 && (unitIndex != null || parsedUnit.isNullOrEmpty())
+
+    val initialNumberIndex = if (canUsePicker && parsedNumber != null) parsedNumber - 1 else 0
+    val initialUnitIndex = unitIndex ?: 0
+
+    var useCustomText by remember { mutableStateOf(false) }
+    var numberIndex by remember { mutableIntStateOf(initialNumberIndex) }
+    var unitIdx by remember { mutableIntStateOf(initialUnitIndex) }
+    var customText by remember { mutableStateOf(if (useCustomText) value else "") }
+
+    // Emit the picker's initial value so the parent has a non-empty quantity
+    LaunchedEffect(Unit) {
+        if (value.isEmpty()) {
+            val num = PICKER_NUMBERS[initialNumberIndex]
+            val unit = PICKER_UNITS[initialUnitIndex]
+            onValueChange("$num $unit".trim())
+        }
+    }
+
     Column {
         Text("Quantity", style = MaterialTheme.typography.labelMedium)
-        Spacer(Modifier.height(4.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            QUANTITY_PRESETS.forEach { preset ->
-                FilterChip(
-                    selected = value == preset,
-                    onClick = { onValueChange(if (value == preset) "" else preset) },
-                    label = { Text(preset, style = MaterialTheme.typography.labelSmall) }
+        Spacer(Modifier.height(8.dp))
+
+        if (!useCustomText) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                WheelPicker(
+                    items = PICKER_NUMBERS,
+                    selectedIndex = numberIndex,
+                    onSelectedChange = { idx ->
+                        numberIndex = idx
+                        val num = PICKER_NUMBERS[idx]
+                        val unit = PICKER_UNITS[unitIdx]
+                        onValueChange("$num $unit".trim())
+                    },
+                    modifier = Modifier.weight(0.8f)
+                )
+                WheelPicker(
+                    items = PICKER_UNITS.map { it.ifEmpty { "—" } },
+                    selectedIndex = unitIdx,
+                    onSelectedChange = { idx ->
+                        unitIdx = idx
+                        val num = PICKER_NUMBERS[numberIndex]
+                        val unit = PICKER_UNITS[idx]
+                        onValueChange("$num $unit".trim())
+                    },
+                    modifier = Modifier.weight(1.2f)
                 )
             }
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = { useCustomText = true; customText = ""; onValueChange("") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) { Text("Type custom amount") }
+        } else {
+            OutlinedTextField(
+                value = customText,
+                onValueChange = { customText = it; onValueChange(it) },
+                label = { Text("Quantity") },
+                placeholder = { Text("e.g. enough, a couple, big ole box") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = {
+                    useCustomText = false
+                    numberIndex = 0
+                    unitIdx = 0
+                    onValueChange(PICKER_NUMBERS[0])
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) { Text("Use picker") }
         }
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text("Or type your own") },
-            placeholder = { Text("e.g. 12, 2 bags, a couple") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth()
+    }
+}
+
+@Composable
+private fun WheelPicker(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleCount = 5
+    val itemHeightDp = 36.dp
+    val totalHeight = itemHeightDp * visibleCount
+    val paddingItems = visibleCount / 2
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Update selection when user scrolling settles (not during programmatic scroll)
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.isScrollInProgress
+        }.collect { scrolling ->
+            if (!scrolling) {
+                val layoutInfo = listState.layoutInfo
+                val viewportCenter = layoutInfo.viewportStartOffset +
+                    (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
+                val centerIdx = layoutInfo.visibleItemsInfo.minByOrNull {
+                    kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
+                }?.index?.minus(paddingItems)?.coerceIn(0, items.lastIndex)
+                if (centerIdx != null && centerIdx != selectedIndex) {
+                    onSelectedChange(centerIdx)
+                }
+            }
+        }
+    }
+
+    Box(modifier = modifier.height(totalHeight)) {
+        // Selection highlight band
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeightDp)
+                .align(Alignment.Center)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    shape = MaterialTheme.shapes.small
+                )
         )
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = flingBehavior,
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top padding items
+            items(paddingItems) {
+                Spacer(Modifier.height(itemHeightDp))
+            }
+
+            items(items.size) { index ->
+                val isSelected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeightDp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = items[index],
+                        style = if (isSelected) MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                else MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Bottom padding items
+            items(paddingItems) {
+                Spacer(Modifier.height(itemHeightDp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimpleFlowRow(
+    horizontalSpacing: Dp,
+    verticalSpacing: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val hSpacingPx = with(LocalDensity.current) { horizontalSpacing.roundToPx() }
+    val vSpacingPx = with(LocalDensity.current) { verticalSpacing.roundToPx() }
+
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0)) }
+        val maxWidth = constraints.maxWidth
+
+        var x = 0
+        var y = 0
+        var rowHeight = 0
+        val positions = mutableListOf<Pair<Int, Int>>()
+
+        placeables.forEach { placeable ->
+            if (x + placeable.width > maxWidth && x > 0) {
+                x = 0
+                y += rowHeight + vSpacingPx
+                rowHeight = 0
+            }
+            positions.add(x to y)
+            rowHeight = maxOf(rowHeight, placeable.height)
+            x += placeable.width + hSpacingPx
+        }
+
+        val totalHeight = y + rowHeight
+        layout(maxWidth, totalHeight) {
+            placeables.forEachIndexed { i, placeable ->
+                placeable.placeRelative(positions[i].first, positions[i].second)
+            }
+        }
     }
 }
