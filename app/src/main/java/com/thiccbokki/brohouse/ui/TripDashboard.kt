@@ -244,6 +244,14 @@ fun MemberRowView(
                         )
                     }
                 }
+                // Paid chip — only shown when something has been paid
+                if (member.amountPaid > 0.0 && !isPaidUp) {
+                    Text(
+                        "$%,.2f Paid".format(member.amountPaid),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF4CAF50)
+                    )
+                }
             }
         }
 
