@@ -2,29 +2,33 @@ package com.thiccbokki.brohouse.ui
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DragHandle
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -33,6 +37,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.thiccbokki.brohouse.TripViewModel
@@ -40,6 +46,14 @@ import com.thiccbokki.brohouse.data.SupplyItem
 import com.thiccbokki.brohouse.data.TripMember
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
+
+private fun categoryIcon(category: String): ImageVector = when (category) {
+    "Food"                    -> Icons.Default.Restaurant
+    "Disposables"             -> Icons.Default.ShoppingBag
+    "Entertainment"           -> Icons.Default.SportsEsports
+    "Drugs & Paraphernalia"   -> Icons.Default.Eco
+    else                      -> Icons.Default.Category
+}
 
 val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Drugs & Paraphernalia", "Other")
 
@@ -101,19 +115,39 @@ fun SuppliesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Supplies") },
+                title = {
+                    Text(
+                        "Supplies",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showAddSheet = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Item")
+                    IconButton(onClick = { /* TODO: search */ }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
             )
-        }
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddSheet = true },
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Item")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         val existingNames = remember(supplyItems) {
             supplyItems.map { it.name.lowercase() }.toSet()
@@ -121,71 +155,71 @@ fun SuppliesScreen(
         val availableQuickAdds = QUICK_ADD_ITEMS.filter { it.name.lowercase() !in existingNames }
 
         LazyColumn(
-            contentPadding = innerPadding,
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                bottom = innerPadding.calculateBottomPadding() + 88.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
+            // ── Quick Add ─────────────────────────────────────────────────────
             if (availableQuickAdds.isNotEmpty()) {
                 item(key = "quick_add") {
-                    var quickAddExpanded by remember { mutableStateOf(true) }
-                    val caretRotation by animateFloatAsState(
-                        targetValue = if (quickAddExpanded) 0f else -90f,
-                        label = "quick_add_caret"
-                    )
                     Column {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { quickAddExpanded = !quickAddExpanded }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        Text(
+                            "QUICK ADD",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = TextUnit(1.5f, TextUnitType.Sp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                Icons.Default.KeyboardArrowDown,
-                                contentDescription = if (quickAddExpanded) "Collapse" else "Expand",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                                modifier = Modifier.size(20.dp).rotate(caretRotation)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Quick Add",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                            )
-                        }
-                        if (quickAddExpanded) {
-                            SimpleFlowRow(
-                                horizontalSpacing = 8.dp,
-                                verticalSpacing = 8.dp,
-                                modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp)
-                            ) {
-                                availableQuickAdds.forEach { quickItem ->
-                                    ElevatedFilterChip(
-                                        selected = false,
-                                        onClick = {
-                                            viewModel.addSupplyItem(
-                                                quickItem.name,
-                                                quickItem.category,
-                                                quickItem.quantity
-                                            )
-                                            pendingQuickAddName = quickItem.name
-                                        },
-                                        label = { Text(quickItem.name) },
-                                        leadingIcon = {
-                                            Icon(
-                                                Icons.Default.Add,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
+                            items(availableQuickAdds, key = { it.name }) { quickItem ->
+                                Surface(
+                                    onClick = {
+                                        viewModel.addSupplyItem(
+                                            quickItem.name,
+                                            quickItem.category,
+                                            quickItem.quantity
+                                        )
+                                        pendingQuickAddName = quickItem.name
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
                                     )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            quickItem.name,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         }
-                        HorizontalDivider()
                     }
                 }
             }
 
+            // ── Empty state ───────────────────────────────────────────────────
             if (supplyItems.isEmpty()) {
                 item(key = "empty") {
                     Text(
@@ -200,30 +234,39 @@ fun SuppliesScreen(
                 }
             }
 
+            // ── Categories ────────────────────────────────────────────────────
             SUPPLY_CATEGORIES.forEach { category ->
                 val categoryItems = grouped[category] ?: return@forEach
                 val isCollapsed = collapsedCategories[category] != false
+                val claimedCount = categoryItems.count { it.isClaimed }
 
-                item(key = "header_$category") {
-                    val claimedCount = categoryItems.count { it.isClaimed }
-                    CategoryHeader(
-                        category = category,
-                        claimedCount = claimedCount,
-                        totalCount = categoryItems.size,
-                        isCollapsed = isCollapsed,
-                        onToggle = { collapsedCategories[category] = !isCollapsed }
-                    )
-                }
-
-                if (!isCollapsed) {
-                    item(key = "category_items_$category") {
-                        ReorderableCategory(
-                            items = categoryItems,
-                            onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
-                            onClaim = { claimItem = it },
-                            onManageClaims = { manageClaimItem = it },
-                            onDelete = { deleteItem = it }
+                item(key = "cat_$category") {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        CategoryHeader(
+                            category = category,
+                            claimedCount = claimedCount,
+                            totalCount = categoryItems.size,
+                            isCollapsed = isCollapsed,
+                            onToggle = { collapsedCategories[category] = !isCollapsed }
                         )
+                        if (!isCollapsed) {
+                            ReorderableCategory(
+                                items = categoryItems,
+                                onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
+                                onClaim = { claimItem = it },
+                                onManageClaims = { manageClaimItem = it },
+                                onDelete = { deleteItem = it }
+                            )
+                        }
                     }
                 }
             }
@@ -245,9 +288,10 @@ fun SuppliesScreen(
     }
 
     claimItem?.let { item ->
-        ClaimDialog(
+        val currentMember = members.find { it.uid == viewModel.currentUid }
+        ClaimSheet(
             item = item,
-            members = members,
+            currentMember = currentMember,
             onDismiss = { claimItem = null },
             onClaim = { member, quantity ->
                 viewModel.claimSupplyItem(item, member, quantity)
@@ -303,32 +347,51 @@ private fun CategoryHeader(
         targetValue = if (isCollapsed) -90f else 0f,
         label = "caret_rotation"
     )
-    Row(
+    val progress = if (totalCount > 0) claimedCount.toFloat() / totalCount else 0f
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
             .clickable(onClick = onToggle)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 14.dp)
     ) {
-        Icon(
-            Icons.Default.KeyboardArrowDown,
-            contentDescription = if (isCollapsed) "Expand" else "Collapse",
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(20.dp).rotate(rotation)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = category,
-            style = MaterialTheme.typography.titleSmall,
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = categoryIcon(category),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = category,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "$claimedCount/$totalCount claimed",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isCollapsed) "Expand" else "Collapse",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp).rotate(rotation)
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(CircleShape),
             color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "$claimedCount/$totalCount",
-            style = MaterialTheme.typography.labelMedium,
-            color = if (claimedCount < totalCount) MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
         )
     }
 }
@@ -497,60 +560,113 @@ private fun SupplyItemRow(
                     label = { Text(if (names.size == 1) names.first() else "${names.size} claimed") }
                 )
             } else {
-                AssistChip(onClick = onClick, label = { Text("Unclaimed") })
+                OutlinedButton(
+                    onClick = onClick,
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        "Claim",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ClaimDialog(
+private fun ClaimSheet(
     item: SupplyItem,
-    members: List<TripMember>,
+    currentMember: TripMember?,
     onDismiss: () -> Unit,
     onClaim: (TripMember, String) -> Unit
 ) {
-    var selectedMember by remember { mutableStateOf<TripMember?>(null) }
+    val sheetState = rememberModalBottomSheetState()
     var quantity by remember { mutableStateOf(item.quantity) }
 
-    AlertDialog(
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        title = { Text(if (selectedMember == null) "Who's bringing this?" else "Claim ${item.name}") },
-        text = {
-            if (members.isEmpty()) {
-                Text("Add some people first!")
-            } else if (selectedMember == null) {
-                Column {
-                    members.forEach { member ->
-                        TextButton(
-                            onClick = { selectedMember = member },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(member.displayName, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge)
-                        }
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // ── Header ────────────────────────────────────────────────────
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Claim Item",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "How much are you bringing?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+
+            // ── Quantity picker label ─────────────────────────────────────
+            Text(
+                "QUANTITY PICKER",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+            )
+            Spacer(Modifier.height(12.dp))
+
+            // ── Wheel pickers ─────────────────────────────────────────────
+            QuantityField(value = quantity, onValueChange = { quantity = it })
+            Spacer(Modifier.height(24.dp))
+
+            // ── Buttons ───────────────────────────────────────────────────
+            if (currentMember == null) {
+                Text(
+                    "You need to be a trip member to claim items.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Close") }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1f).height(52.dp)
+                    ) {
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Button(
+                        onClick = { onClaim(currentMember, quantity.trim()) },
+                        shape = CircleShape,
+                        modifier = Modifier.weight(2f).height(52.dp)
+                    ) {
+                        Text("Confirm Claim", style = MaterialTheme.typography.labelLarge)
                     }
                 }
-            } else {
-                Column {
-                    Text("${selectedMember!!.displayName} is bringing this")
-                    Spacer(Modifier.height(12.dp))
-                    QuantityField(value = quantity, onValueChange = { quantity = it })
-                }
-            }
-        },
-        confirmButton = {
-            if (selectedMember != null) {
-                Button(onClick = { onClaim(selectedMember!!, quantity.trim()) }) { Text("Claim") }
-            } else {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-            }
-        },
-        dismissButton = {
-            if (selectedMember != null) {
-                TextButton(onClick = { selectedMember = null }) { Text("Back") }
             }
         }
-    )
+    }
 }
 
 @Composable
@@ -608,6 +724,7 @@ private fun AddSupplyItemSheet(
     var selectedCategory by remember { mutableStateOf(SUPPLY_CATEGORIES.first()) }
     var quantity by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedName = name.trim()
     val isDuplicate = trimmedName.lowercase() in existingNames
 
@@ -660,6 +777,7 @@ private fun AddSupplyItemSheet(
         LaunchedEffect(Unit) {
             delay(100)
             focusRequester.requestFocus()
+            keyboardController?.show()
         }
     }
 }

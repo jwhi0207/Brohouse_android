@@ -69,6 +69,8 @@ class TripRepository {
                         thumbnailURL = doc.getString("thumbnailURL"),
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
+                        checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+                        checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                     )
@@ -90,6 +92,8 @@ class TripRepository {
                         thumbnailURL = doc.getString("thumbnailURL"),
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
+                        checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+                        checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                     )
@@ -210,6 +214,12 @@ class TripRepository {
         tripsCollection.document(tripId).collection("supplies").document(itemId).delete().await()
     }
 
+    // ─── Trip ─────────────────────────────────────────────────────────────────
+
+    suspend fun renameTripName(tripId: String, name: String) {
+        tripsCollection.document(tripId).update("name", name).await()
+    }
+
     // ─── House Details ────────────────────────────────────────────────────────
 
     suspend fun saveHouseDetails(
@@ -217,13 +227,16 @@ class TripRepository {
         url: String,
         nights: Int,
         cost: Double,
-        currentURL: String?
+        checkInMillis: Long,
+        checkOutMillis: Long,
+        currentURL: String?,
+        currentThumbnailURL: String?
     ) {
         val urlChanged = url != (currentURL ?: "")
         val thumbnailURL: String? = if (urlChanged && url.isNotBlank()) {
             withContext(Dispatchers.IO) { fetchAndUploadThumbnail(tripId, url) }
         } else {
-            if (url.isBlank()) null else currentURL
+            if (url.isBlank()) null else currentThumbnailURL
         }
 
         tripsCollection.document(tripId).update(
@@ -231,7 +244,9 @@ class TripRepository {
                 "houseURL" to url,
                 "totalNights" to nights,
                 "totalCost" to cost,
-                "thumbnailURL" to thumbnailURL
+                "thumbnailURL" to thumbnailURL,
+                "checkInMillis" to checkInMillis,
+                "checkOutMillis" to checkOutMillis
             )
         ).await()
     }
@@ -277,6 +292,115 @@ class TripRepository {
             if (match != null) return match.groupValues[1]
         }
         return null
+    }
+
+    // ─── Rides ───────────────────────────────────────────────────────────────
+
+    fun getRides(tripId: String): Flow<List<Ride>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("rides")
+            .addSnapshotListener { snap, error ->
+                if (error != null) Log.e("TripRepository", "getRides failed", error)
+                val rides = snap?.documents?.map { doc ->
+                    Ride(
+                        id = doc.id,
+                        driverUid = doc.getString("driverUid") ?: "",
+                        driverName = doc.getString("driverName") ?: "",
+                        vehicleEmoji = doc.getString("vehicleEmoji") ?: "🚗",
+                        vehicleLabel = doc.getString("vehicleLabel") ?: "",
+                        departureLocation = doc.getString("departureLocation") ?: "",
+                        totalSeats = (doc.getLong("totalSeats") ?: 4L).toInt(),
+                        departureTime = doc.getLong("departureTime") ?: 0L,
+                        returnTime = doc.getLong("returnTime") ?: 0L,
+                        notes = doc.getString("notes") ?: "",
+                        passengerUids = (doc.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        passengerNames = (doc.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                    )
+                } ?: emptyList()
+                trySend(rides)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun addRide(tripId: String, ride: Ride) {
+        val data = mapOf(
+            "driverUid" to ride.driverUid,
+            "driverName" to ride.driverName,
+            "vehicleEmoji" to ride.vehicleEmoji,
+            "vehicleLabel" to ride.vehicleLabel,
+            "departureLocation" to ride.departureLocation,
+            "totalSeats" to ride.totalSeats,
+            "departureTime" to ride.departureTime,
+            "returnTime" to ride.returnTime,
+            "notes" to ride.notes,
+            "passengerUids" to emptyList<String>(),
+            "passengerNames" to emptyList<String>()
+        )
+        tripsCollection.document(tripId).collection("rides").add(data).await()
+    }
+
+    suspend fun claimSeat(tripId: String, rideId: String, uid: String, displayName: String) {
+        val ref = tripsCollection.document(tripId).collection("rides").document(rideId)
+        db.runTransaction { tx ->
+            val snap = tx.get(ref)
+            val uids = (snap.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            val names = (snap.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            if (uid !in uids) {
+                tx.update(ref, mapOf(
+                    "passengerUids" to uids + uid,
+                    "passengerNames" to names + displayName
+                ))
+            }
+        }.await()
+    }
+
+    suspend fun unclaimSeat(tripId: String, rideId: String, uid: String) {
+        val ref = tripsCollection.document(tripId).collection("rides").document(rideId)
+        db.runTransaction { tx ->
+            val snap = tx.get(ref)
+            val uids = (snap.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            val names = (snap.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+            val idx = uids.indexOf(uid)
+            if (idx >= 0) {
+                tx.update(ref, mapOf(
+                    "passengerUids" to uids.toMutableList().also { it.removeAt(idx) },
+                    "passengerNames" to names.toMutableList().also { if (idx < it.size) it.removeAt(idx) }
+                ))
+            }
+        }.await()
+    }
+
+    suspend fun deleteRide(tripId: String, rideId: String) {
+        tripsCollection.document(tripId).collection("rides").document(rideId).delete().await()
+    }
+
+    // ─── Ride Requests ────────────────────────────────────────────────────────
+
+    fun getRideRequests(tripId: String): Flow<List<RideRequest>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("rideRequests")
+            .addSnapshotListener { snap, error ->
+                if (error != null) Log.e("TripRepository", "getRideRequests failed", error)
+                val requests = snap?.documents?.map { doc ->
+                    RideRequest(
+                        uid = doc.getString("uid") ?: doc.id,
+                        displayName = doc.getString("displayName") ?: "",
+                        notes = doc.getString("notes") ?: ""
+                    )
+                } ?: emptyList()
+                trySend(requests)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun addRideRequest(tripId: String, request: RideRequest) {
+        tripsCollection.document(tripId).collection("rideRequests").document(request.uid)
+            .set(mapOf("uid" to request.uid, "displayName" to request.displayName, "notes" to request.notes))
+            .await()
+    }
+
+    suspend fun removeRideRequest(tripId: String, uid: String) {
+        tripsCollection.document(tripId).collection("rideRequests").document(uid).delete().await()
     }
 
     // ─── Invites ──────────────────────────────────────────────────────────────

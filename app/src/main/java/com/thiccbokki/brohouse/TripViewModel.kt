@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.thiccbokki.brohouse.data.Ride
+import com.thiccbokki.brohouse.data.RideRequest
 import com.thiccbokki.brohouse.data.SupplyItem
 import com.thiccbokki.brohouse.data.TripMember
 import com.thiccbokki.brohouse.data.TripRepository
@@ -88,6 +90,53 @@ class TripViewModel(
         repo.updateMember(tripId, member.copy(amountPaid = member.amountPaid + amount))
     }
 
+    // ─── Rides ────────────────────────────────────────────────────────────────
+
+    fun addRide(
+        vehicleEmoji: String,
+        vehicleLabel: String,
+        departureLocation: String,
+        totalSeats: Int,
+        departureTime: Long,
+        returnTime: Long,
+        notes: String
+    ) = viewModelScope.launch {
+        val member = members.value.find { it.uid == currentUid } ?: return@launch
+        repo.addRide(tripId, Ride(
+            driverUid = currentUid,
+            driverName = member.displayName,
+            vehicleEmoji = vehicleEmoji,
+            vehicleLabel = vehicleLabel,
+            departureLocation = departureLocation,
+            totalSeats = totalSeats,
+            departureTime = departureTime,
+            returnTime = returnTime,
+            notes = notes
+        ))
+    }
+
+    fun claimSeat(rideId: String) = viewModelScope.launch {
+        val member = members.value.find { it.uid == currentUid } ?: return@launch
+        repo.claimSeat(tripId, rideId, currentUid, member.displayName)
+    }
+
+    fun unclaimSeat(rideId: String) = viewModelScope.launch {
+        repo.unclaimSeat(tripId, rideId, currentUid)
+    }
+
+    fun deleteRide(rideId: String) = viewModelScope.launch {
+        repo.deleteRide(tripId, rideId)
+    }
+
+    fun requestRide() = viewModelScope.launch {
+        val member = members.value.find { it.uid == currentUid } ?: return@launch
+        repo.addRideRequest(tripId, RideRequest(uid = currentUid, displayName = member.displayName))
+    }
+
+    fun cancelRideRequest() = viewModelScope.launch {
+        repo.removeRideRequest(tripId, currentUid)
+    }
+
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
@@ -130,16 +179,34 @@ class TripViewModel(
         }
     }
 
+    val rides = repo.getRides(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val rideRequests = repo.getRideRequests(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun canEditRide(ride: Ride): Boolean =
+        currentUid == ride.driverUid || currentUid == (trip.value?.ownerId ?: "")
+
+    // ─── Trip ──────────────────────────────────────────────────────────────────
+
+    fun renameTrip(name: String) = viewModelScope.launch {
+        repo.renameTripName(tripId, name)
+    }
+
     // ─── House Details ─────────────────────────────────────────────────────────
 
-    fun saveHouseDetails(url: String, nights: Int, cost: Double) = viewModelScope.launch {
+    fun saveHouseDetails(url: String, nights: Int, cost: Double, checkInMillis: Long, checkOutMillis: Long) = viewModelScope.launch {
         _isSaving.value = true
         repo.saveHouseDetails(
             tripId = tripId,
             url = url,
             nights = nights,
             cost = cost,
-            currentURL = trip.value?.houseURL
+            checkInMillis = checkInMillis,
+            checkOutMillis = checkOutMillis,
+            currentURL = trip.value?.houseURL,
+            currentThumbnailURL = trip.value?.thumbnailURL
         )
         _isSaving.value = false
         _saveComplete.emit(Unit)
