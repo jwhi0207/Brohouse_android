@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -35,6 +36,42 @@ class TripViewModel(
     val supplyItems = repo.getSupplyItems(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    /**
+     * Maps each member's uid → their computed share of the total trip cost.
+     *
+     * Algorithm: since everyone starts on night 1, a guest staying N nights is
+     * present on nights 1..N. For each night we split its cost equally among all
+     * guests who are still there (nightsStayed >= that night number).
+     *
+     *   nightly_cost = totalCost / totalNights
+     *   member share = Σ (nightly_cost / guests_present_that_night)
+     *                    for each night in 1..member.nightsStayed
+     *
+     * Members with nightsStayed == 0 owe $0 until they set their nights.
+     */
+    val memberCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
+        combine(members, trip) { memberList, tripData ->
+            computeCostSplit(memberList, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    private fun computeCostSplit(
+        members: List<TripMember>,
+        totalNights: Int,
+        totalCost: Double
+    ): Map<String, Double> {
+        if (totalNights <= 0 || totalCost <= 0.0 || members.isEmpty()) {
+            return members.associate { it.uid to 0.0 }
+        }
+        val nightlyCost = totalCost / totalNights
+        return members.associate { member ->
+            val share = (1..member.nightsStayed).sumOf { night ->
+                val presentCount = members.count { it.nightsStayed >= night }
+                if (presentCount > 0) nightlyCost / presentCount else 0.0
+            }
+            member.uid to share
+        }
+    }
+
     private val _isSaving = MutableStateFlow(false)
     val isSaving = _isSaving.asStateFlow()
 
@@ -48,7 +85,7 @@ class TripViewModel(
     }
 
     fun addPayment(member: TripMember, amount: Double) = viewModelScope.launch {
-        repo.updateMember(tripId, member.copy(moneyOwed = maxOf(0.0, member.moneyOwed - amount)))
+        repo.updateMember(tripId, member.copy(amountPaid = member.amountPaid + amount))
     }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────

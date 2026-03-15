@@ -105,7 +105,7 @@ class UserRepository {
                         "email" to email,
                         "avatarSeed" to avatarSeed,
                         "nightsStayed" to 0,
-                        "moneyOwed" to 0.0
+                        "amountPaid" to 0.0
                     )
                 )
             }.await()
