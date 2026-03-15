@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.thiccbokki.brohouse.TripViewModel
 import com.thiccbokki.brohouse.data.HouseDetails
+import com.thiccbokki.brohouse.data.Ride
+import com.thiccbokki.brohouse.data.RideRequest
 import com.thiccbokki.brohouse.data.SupplyItem
 import com.thiccbokki.brohouse.data.TripMember
 import java.text.NumberFormat
@@ -32,6 +34,7 @@ fun TripDashboard(
     isAdmin: Boolean,
     onNavigateToHouseDetails: () -> Unit,
     onNavigateToSupplies: () -> Unit,
+    onNavigateToCarpool: () -> Unit,
     onNavigateToInvite: () -> Unit,
     onNavigateBack: () -> Unit,
     onSignOut: () -> Unit = {}
@@ -39,6 +42,8 @@ fun TripDashboard(
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
+    val rides by viewModel.rides.collectAsState()
+    val rideRequests by viewModel.rideRequests.collectAsState()
     val memberCosts by viewModel.memberCosts.collectAsState()
     val currentUid = viewModel.currentUid
 
@@ -106,6 +111,15 @@ fun TripDashboard(
                 SuppliesCard(
                     supplyItems = supplyItems,
                     onClick = onNavigateToSupplies,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+
+            item {
+                CarpoolCard(
+                    rides = rides,
+                    rideRequests = rideRequests,
+                    onClick = onNavigateToCarpool,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
@@ -393,6 +407,51 @@ fun SuppliesCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+        }
+    }
+}
+
+@Composable
+fun CarpoolCard(
+    rides: List<Ride>,
+    rideRequests: List<RideRequest>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val vehicleCount = rides.size
+    val openSeats = rides.sumOf { it.availableSeats }
+    val needRideCount = rideRequests.size
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Carpool", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(4.dp))
+            if (rides.isEmpty() && rideRequests.isEmpty()) {
+                Text(
+                    "No rides yet — tap to organize carpools",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            } else {
+                val parts = mutableListOf<String>()
+                if (vehicleCount > 0) {
+                    parts.add("$vehicleCount ${if (vehicleCount == 1) "vehicle" else "vehicles"}, $openSeats open ${if (openSeats == 1) "seat" else "seats"}")
+                }
+                if (needRideCount > 0) {
+                    parts.add("$needRideCount need a ride")
+                }
+                Text(
+                    parts.joinToString(" • "),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }

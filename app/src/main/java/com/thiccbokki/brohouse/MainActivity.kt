@@ -16,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.thiccbokki.brohouse.auth.AuthState
 import com.thiccbokki.brohouse.auth.AuthViewModel
+import com.thiccbokki.brohouse.ui.CarpoolScreen
 import com.thiccbokki.brohouse.ui.HouseDetailsScreen
 import com.thiccbokki.brohouse.ui.InviteScreen
 import com.thiccbokki.brohouse.ui.TripDashboard
@@ -102,6 +103,7 @@ fun BrohouseApp() {
                 isAdmin = isAdmin,
                 onNavigateToHouseDetails = { navController.navigate("trip/$tripId/house_details") },
                 onNavigateToSupplies = { navController.navigate("trip/$tripId/supplies") },
+                onNavigateToCarpool = { navController.navigate("trip/$tripId/carpool") },
                 onNavigateToInvite = { navController.navigate("trip/$tripId/invite") },
                 onNavigateBack = { navController.popBackStack() },
                 onSignOut = { authViewModel.signOut() }
@@ -130,6 +132,14 @@ fun BrohouseApp() {
             InviteScreen(
                 viewModel = tripViewModel,
                 isAdmin = isAdmin,
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable("trip/{tripId}/carpool") {
+            val tripViewModel: TripViewModel = viewModel()
+            CarpoolScreen(
+                viewModel = tripViewModel,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
