@@ -40,6 +40,8 @@ fun TripDashboard(
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
+    val memberCosts by viewModel.memberCosts.collectAsState()
+    val currentUid = viewModel.currentUid
     val context = LocalContext.current
 
     var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
@@ -131,9 +133,12 @@ fun TripDashboard(
                 }
             } else {
                 items(members, key = { it.uid }) { member ->
+                    val computedOwed = memberCosts[member.uid] ?: 0.0
                     MemberRowView(
                         member = member,
+                        computedOwed = computedOwed,
                         isAdmin = isAdmin,
+                        isCurrentUser = member.uid == currentUid,
                         onEditNights = { editNightsMember = member },
                         onAddPayment = { addPaymentMember = member }
                     )
@@ -146,6 +151,7 @@ fun TripDashboard(
     editNightsMember?.let { member ->
         EditNightsSheet(
             currentNights = member.nightsStayed,
+            maxNights = trip?.totalNights ?: 0,
             onDismiss = { editNightsMember = null },
             onSave = { nights ->
                 viewModel.updateNights(member, nights)
@@ -155,8 +161,10 @@ fun TripDashboard(
     }
 
     addPaymentMember?.let { member ->
+        val computedOwed = memberCosts[member.uid] ?: 0.0
         AddPaymentSheet(
-            currentOwed = member.moneyOwed,
+            computedOwed = computedOwed,
+            amountPaid = member.amountPaid,
             onDismiss = { addPaymentMember = null },
             onSave = { amount ->
                 viewModel.addPayment(member, amount)
@@ -169,11 +177,18 @@ fun TripDashboard(
 @Composable
 fun MemberRowView(
     member: TripMember,
+    computedOwed: Double,
     isAdmin: Boolean,
+    isCurrentUser: Boolean,
     onEditNights: () -> Unit,
     onAddPayment: () -> Unit
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val remaining = computedOwed - member.amountPaid
+    val isPaidUp = remaining <= 0.0
+    val currency = NumberFormat.getCurrencyInstance(Locale.US)
+    val canEditNights = isCurrentUser || isAdmin
+    val canAddPayment = isAdmin
 
     Row(
         modifier = Modifier
@@ -188,6 +203,7 @@ fun MemberRowView(
             Text(member.displayName, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                // Nights chip
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.NightlightRound,
@@ -198,28 +214,47 @@ fun MemberRowView(
                     Spacer(Modifier.width(3.dp))
                     val n = member.nightsStayed
                     Text(
-                        "$n ${if (n == 1) "night" else "nights"}",
+                        if (n == 0) "Nights TBD" else "$n ${if (n == 1) "night" else "nights"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                     )
                 }
+                // Balance chip
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.AttachMoney,
-                        contentDescription = null,
-                        tint = Color(0xFF4CAF50),
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Text(
-                        NumberFormat.getCurrencyInstance(Locale.US).format(member.moneyOwed),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                    if (isPaidUp && computedOwed > 0.0) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(3.dp))
+                        Text(
+                            "Paid up",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF4CAF50)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.AttachMoney,
+                            contentDescription = null,
+                            tint = if (member.nightsStayed == 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                   else Color(0xFFE57373),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            if (member.nightsStayed == 0) "Set nights to calculate"
+                            else currency.format(remaining),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (member.nightsStayed == 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                                    else Color(0xFFE57373)
+                        )
+                    }
                 }
             }
         }
 
-        if (isAdmin) {
+        if (canEditNights || canAddPayment) {
             Box {
                 IconButton(onClick = { showMenu = true }) {
                     Icon(
@@ -229,16 +264,20 @@ fun MemberRowView(
                     )
                 }
                 DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Edit Nights") },
-                        leadingIcon = { Icon(Icons.Filled.NightlightRound, null) },
-                        onClick = { showMenu = false; onEditNights() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Add Payment") },
-                        leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
-                        onClick = { showMenu = false; onAddPayment() }
-                    )
+                    if (canEditNights) {
+                        DropdownMenuItem(
+                            text = { Text("Edit Nights") },
+                            leadingIcon = { Icon(Icons.Filled.NightlightRound, null) },
+                            onClick = { showMenu = false; onEditNights() }
+                        )
+                    }
+                    if (canAddPayment) {
+                        DropdownMenuItem(
+                            text = { Text("Add Payment") },
+                            leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
+                            onClick = { showMenu = false; onAddPayment() }
+                        )
+                    }
                 }
             }
         }

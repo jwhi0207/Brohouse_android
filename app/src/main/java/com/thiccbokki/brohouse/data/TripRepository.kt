@@ -47,7 +47,7 @@ class TripRepository {
             "email" to ownerEmail,
             "avatarSeed" to ownerAvatarSeed,
             "nightsStayed" to 0,
-            "moneyOwed" to 0.0
+            "amountPaid" to 0.0
         )
         db.runBatch { batch ->
             batch.set(tripRef, tripData)
@@ -114,7 +114,7 @@ class TripRepository {
                         email = doc.getString("email") ?: "",
                         avatarSeed = doc.getLong("avatarSeed") ?: 0L,
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
-                        moneyOwed = doc.getDouble("moneyOwed") ?: 0.0
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -129,7 +129,7 @@ class TripRepository {
             .update(
                 mapOf(
                     "nightsStayed" to member.nightsStayed,
-                    "moneyOwed" to member.moneyOwed
+                    "amountPaid" to member.amountPaid
                 )
             ).await()
     }
