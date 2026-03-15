@@ -244,7 +244,7 @@ fun MemberRowView(
                         )
                         Text(
                             if (member.nightsStayed == 0) "Set nights to calculate"
-                            else "Owes $%,.2f".format(remaining),
+                            else "$%,.2f Due".format(remaining),
                             style = MaterialTheme.typography.bodySmall,
                             color = if (member.nightsStayed == 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                                     else Color(0xFFE57373)
