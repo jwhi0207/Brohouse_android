@@ -235,13 +235,6 @@ fun MemberRowView(
                             color = Color(0xFF4CAF50)
                         )
                     } else {
-                        Icon(
-                            Icons.Filled.AttachMoney,
-                            contentDescription = null,
-                            tint = if (member.nightsStayed == 0) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                   else Color(0xFFE57373),
-                            modifier = Modifier.size(14.dp)
-                        )
                         Text(
                             if (member.nightsStayed == 0) "Set nights to calculate"
                             else "$%,.2f Due".format(remaining),
