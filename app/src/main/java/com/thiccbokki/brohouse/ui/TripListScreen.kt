@@ -7,8 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,7 +38,7 @@ fun TripListScreen(
                 title = { Text("My Trips") },
                 actions = {
                     IconButton(onClick = { showSignOutDialog = true }) {
-                        Icon(Icons.Default.Logout, contentDescription = "Sign Out")
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Sign Out")
                     }
                 }
             )
