@@ -5,14 +5,18 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.thiccbokki.brohouse.TripViewModel
 import kotlinx.coroutines.flow.collectLatest
 
@@ -34,12 +38,11 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
     val canSave = isAdmin && validNights != null && validCost != null && !isSaving
 
     LaunchedEffect(trip) {
-        if (!initialized) {
-            trip?.let { t ->
-                urlText = t.houseURL
-                nightsText = if (t.totalNights > 0) "${t.totalNights}" else ""
-                costText = if (t.totalCost > 0) String.format("%.2f", t.totalCost) else ""
-            }
+        val t = trip
+        if (!initialized && t != null) {
+            urlText = t.houseURL
+            nightsText = if (t.totalNights > 0) "${t.totalNights}" else ""
+            costText = if (t.totalCost > 0) String.format("%.2f", t.totalCost) else ""
             initialized = true
         }
     }
@@ -114,6 +117,21 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                 }) else null,
                 modifier = Modifier.fillMaxWidth()
             )
+
+            val context = LocalContext.current
+            val url = urlText.trim()
+            if (url.isNotBlank()) {
+                TextButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Open in Browser")
+                }
+            }
 
             Text("Total Nights", style = MaterialTheme.typography.labelLarge)
             OutlinedTextField(
