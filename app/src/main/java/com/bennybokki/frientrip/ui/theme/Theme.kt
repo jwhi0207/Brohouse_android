@@ -83,7 +83,7 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun BrohouseTheme(
+fun FrientripTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {

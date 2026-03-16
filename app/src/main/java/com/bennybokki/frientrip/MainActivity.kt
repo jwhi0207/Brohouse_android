@@ -20,16 +20,16 @@ import com.bennybokki.frientrip.ui.TripListScreen
 import com.bennybokki.frientrip.ui.TripScaffold
 import com.bennybokki.frientrip.ui.auth.LoginScreen
 import com.bennybokki.frientrip.ui.auth.RegisterScreen
-import com.bennybokki.frientrip.ui.theme.BrohouseTheme
+import com.bennybokki.frientrip.ui.theme.FrientripTheme
 
-private const val WEB_CLIENT_ID = "316196631711-rpghvrkvonsvdvfslet521v2potvudae.apps.googleusercontent.com"
+private const val WEB_CLIENT_ID = "227024772331-11e7iqdfkpvpdoa5c7e1lnr7nbgri50q.apps.googleusercontent.com"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            BrohouseTheme {
+            FrientripTheme {
                 BrohouseApp()
             }
         }
