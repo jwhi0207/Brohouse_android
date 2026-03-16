@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.thiccbokki.brohouse"
+    namespace = "com.bennybokki.frientrip"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.thiccbokki.brohouse"
+        applicationId = "com.bennybokki.frientrip"
         minSdk = 24
         targetSdk = 35
         versionCode = 1

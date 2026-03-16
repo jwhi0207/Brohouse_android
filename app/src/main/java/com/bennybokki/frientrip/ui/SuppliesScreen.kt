@@ -1,0 +1,996 @@
+package com.bennybokki.frientrip.ui
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
+import com.bennybokki.frientrip.TripViewModel
+import com.bennybokki.frientrip.data.SupplyItem
+import com.bennybokki.frientrip.data.TripMember
+import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
+
+private fun categoryIcon(category: String): ImageVector = when (category) {
+    "Food"                    -> Icons.Default.Restaurant
+    "Disposables"             -> Icons.Default.ShoppingBag
+    "Entertainment"           -> Icons.Default.SportsEsports
+    "Drugs & Paraphernalia"   -> Icons.Default.Eco
+    else                      -> Icons.Default.Category
+}
+
+val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Drugs & Paraphernalia", "Other")
+
+private val PICKER_NUMBERS = (1..99).map { it.toString() }
+private val PICKER_UNITS = listOf(
+    "", "pieces", "dozen", "packs", "boxes",
+    "bags", "cases", "bottles", "cans", "lbs", "oz", "gallons", "liters"
+)
+private val QUANTITY_PATTERN = Regex("""^(\d{1,2})\s*(.*)$""")
+
+data class QuickAddItem(val name: String, val category: String, val quantity: String = "")
+
+val QUICK_ADD_ITEMS = listOf(
+    QuickAddItem("Burgers", "Food"),
+    QuickAddItem("Buns", "Food"),
+    QuickAddItem("Hot Dogs", "Food"),
+    QuickAddItem("Hot Dog Buns", "Food"),
+    QuickAddItem("Chili", "Food"),
+    QuickAddItem("Ketchup", "Food"),
+    QuickAddItem("Mustard", "Food"),
+    QuickAddItem("Eggs", "Food"),
+    QuickAddItem("Bacon", "Food"),
+    QuickAddItem("Coffee", "Food"),
+    QuickAddItem("Garbage Bags", "Disposables"),
+    QuickAddItem("Plastic Cups", "Disposables"),
+    QuickAddItem("Plastic Utensils", "Disposables"),
+    QuickAddItem("Bluetooth Speaker", "Entertainment"),
+    QuickAddItem("Weed", "Drugs & Paraphernalia"),
+    QuickAddItem("Shrooms", "Drugs & Paraphernalia"),
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SuppliesScreen(
+    viewModel: TripViewModel,
+    onNavigateBack: () -> Unit
+) {
+    val supplyItems by viewModel.supplyItems.collectAsState()
+    val members by viewModel.members.collectAsState()
+
+    var showAddSheet by remember { mutableStateOf(false) }
+    var claimItem by remember { mutableStateOf<SupplyItem?>(null) }
+    var manageClaimItem by remember { mutableStateOf<SupplyItem?>(null) }
+    var deleteItem by remember { mutableStateOf<SupplyItem?>(null) }
+    var pendingQuickAddName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(pendingQuickAddName, supplyItems) {
+        val name = pendingQuickAddName ?: return@LaunchedEffect
+        val found = supplyItems.find { it.name.equals(name, ignoreCase = true) }
+        if (found != null) {
+            claimItem = found
+            pendingQuickAddName = null
+        }
+    }
+
+    val collapsedCategories = remember { mutableStateMapOf<String, Boolean>() }
+    val grouped = supplyItems.groupBy { it.category }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        "Supplies",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* TODO: search */ }) {
+                        Icon(Icons.Default.Search, contentDescription = "Search")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { showAddSheet = true },
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add Item")
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        val existingNames = remember(supplyItems) {
+            supplyItems.map { it.name.lowercase() }.toSet()
+        }
+        val availableQuickAdds = QUICK_ADD_ITEMS.filter { it.name.lowercase() !in existingNames }
+
+        LazyColumn(
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                bottom = innerPadding.calculateBottomPadding() + 88.dp
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // ── Quick Add ─────────────────────────────────────────────────────
+            if (availableQuickAdds.isNotEmpty()) {
+                item(key = "quick_add") {
+                    Column {
+                        Text(
+                            "QUICK ADD",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = TextUnit(1.5f, TextUnitType.Sp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(availableQuickAdds, key = { it.name }) { quickItem ->
+                                Surface(
+                                    onClick = {
+                                        viewModel.addSupplyItem(
+                                            quickItem.name,
+                                            quickItem.category,
+                                            quickItem.quantity
+                                        )
+                                        pendingQuickAddName = quickItem.name
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                    )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Add,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            quickItem.name,
+                                            style = MaterialTheme.typography.labelLarge,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Empty state ───────────────────────────────────────────────────
+            if (supplyItems.isEmpty()) {
+                item(key = "empty") {
+                    Text(
+                        "No supplies yet — tap + or quick-add above!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            // ── Categories ────────────────────────────────────────────────────
+            SUPPLY_CATEGORIES.forEach { category ->
+                val categoryItems = grouped[category] ?: return@forEach
+                val isCollapsed = collapsedCategories[category] != false
+                val claimedCount = categoryItems.count { it.isClaimed }
+
+                item(key = "cat_$category") {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    ) {
+                        CategoryHeader(
+                            category = category,
+                            claimedCount = claimedCount,
+                            totalCount = categoryItems.size,
+                            isCollapsed = isCollapsed,
+                            onToggle = { collapsedCategories[category] = !isCollapsed }
+                        )
+                        if (!isCollapsed) {
+                            ReorderableCategory(
+                                items = categoryItems,
+                                onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
+                                onClaim = { claimItem = it },
+                                onManageClaims = { manageClaimItem = it },
+                                onDelete = { deleteItem = it }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAddSheet) {
+        val existingNamesForSheet = remember(supplyItems) {
+            supplyItems.map { it.name.lowercase() }.toSet()
+        }
+        AddSupplyItemSheet(
+            existingNames = existingNamesForSheet,
+            onDismiss = { showAddSheet = false },
+            onSave = { name, category, quantity ->
+                viewModel.addSupplyItem(name, category, quantity)
+                showAddSheet = false
+            }
+        )
+    }
+
+    claimItem?.let { item ->
+        val currentMember = members.find { it.uid == viewModel.currentUid }
+        ClaimSheet(
+            item = item,
+            currentMember = currentMember,
+            onDismiss = { claimItem = null },
+            onClaim = { member, quantity ->
+                viewModel.claimSupplyItem(item, member, quantity)
+                claimItem = null
+            }
+        )
+    }
+
+    manageClaimItem?.let { item ->
+        ManageClaimsDialog(
+            item = item,
+            members = members,
+            onDismiss = { manageClaimItem = null },
+            onRemoveClaim = { uid, displayName ->
+                viewModel.unclaimSupplyItem(item, uid, displayName)
+                val updated = item.removeClaim(uid, displayName)
+                manageClaimItem = if (updated.claimedNames.isEmpty()) null else updated
+            },
+            onAddMore = {
+                manageClaimItem = null
+                claimItem = item
+            }
+        )
+    }
+
+    deleteItem?.let { item ->
+            AlertDialog(
+                onDismissRequest = { deleteItem = null },
+                title = { Text("Delete Item") },
+                text = { Text("Remove \"${item.name}\" from the supplies list?") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.deleteSupplyItem(item)
+                        deleteItem = null
+                    }) { Text("Delete") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { deleteItem = null }) { Text("Cancel") }
+                }
+            )
+        }
+}
+
+@Composable
+private fun CategoryHeader(
+    category: String,
+    claimedCount: Int,
+    totalCount: Int,
+    isCollapsed: Boolean,
+    onToggle: () -> Unit
+) {
+    val rotation by animateFloatAsState(
+        targetValue = if (isCollapsed) -90f else 0f,
+        label = "caret_rotation"
+    )
+    val progress = if (totalCount > 0) claimedCount.toFloat() / totalCount else 0f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onToggle)
+            .padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = categoryIcon(category),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = category,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = "$claimedCount/$totalCount claimed",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                Icons.Default.KeyboardArrowDown,
+                contentDescription = if (isCollapsed) "Expand" else "Collapse",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.size(18.dp).rotate(rotation)
+            )
+        }
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(CircleShape),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+        )
+    }
+}
+
+@Composable
+private fun ReorderableCategory(
+    items: List<SupplyItem>,
+    onReorder: (List<SupplyItem>) -> Unit,
+    onClaim: (SupplyItem) -> Unit,
+    onManageClaims: (SupplyItem) -> Unit,
+    onDelete: (SupplyItem) -> Unit
+) {
+    var localItems by remember(items) { mutableStateOf(items) }
+    var draggedIndex by remember { mutableIntStateOf(-1) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    val itemHeightPx = with(LocalDensity.current) { 60.dp.toPx() }
+
+    Column {
+        localItems.forEachIndexed { index, item ->
+            val isDragging = index == draggedIndex
+            key(item.id) {
+                SwipeToDismissItem(
+                    item = item,
+                    isDragging = isDragging,
+                    dragOffset = if (isDragging) dragOffset else 0f,
+                    onClaim = { onClaim(item) },
+                    onManageClaims = { onManageClaims(item) },
+                    onDelete = { onDelete(item) },
+                    onDragStart = { draggedIndex = index; dragOffset = 0f },
+                    onDrag = { delta ->
+                        dragOffset += delta
+                        val targetIndex = draggedIndex + (dragOffset / itemHeightPx).roundToInt()
+                        val clampedTarget = targetIndex.coerceIn(0, localItems.lastIndex)
+                        if (clampedTarget != draggedIndex) {
+                            val mutable = localItems.toMutableList()
+                            val movedItem = mutable.removeAt(draggedIndex)
+                            mutable.add(clampedTarget, movedItem)
+                            localItems = mutable
+                            dragOffset -= (clampedTarget - draggedIndex) * itemHeightPx
+                            draggedIndex = clampedTarget
+                        }
+                    },
+                    onDragEnd = { draggedIndex = -1; dragOffset = 0f; onReorder(localItems) }
+                )
+                HorizontalDivider()
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeToDismissItem(
+    item: SupplyItem,
+    isDragging: Boolean,
+    dragOffset: Float,
+    onClaim: () -> Unit,
+    onManageClaims: () -> Unit,
+    onDelete: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            if (value == SwipeToDismissBoxValue.EndToStart) onDelete()
+            false
+        }
+    )
+    Box(
+        modifier = Modifier.then(
+            if (isDragging) Modifier.zIndex(1f).graphicsLayer { translationY = dragOffset }
+            else Modifier
+        )
+    ) {
+        SwipeToDismissBox(
+            state = dismissState,
+            backgroundContent = {
+                val color by animateColorAsState(
+                    targetValue = if (dismissState.targetValue == SwipeToDismissBoxValue.EndToStart)
+                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surface,
+                    label = "swipe_bg"
+                )
+                Box(
+                    modifier = Modifier.fillMaxSize().background(color).padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onError)
+                }
+            },
+            enableDismissFromStartToEnd = false,
+            enableDismissFromEndToStart = !isDragging
+        ) {
+            SupplyItemRow(
+                item = item,
+                isDragging = isDragging,
+                onClick = onClaim,
+                onChipClick = onManageClaims,
+                onDragStart = onDragStart,
+                onDrag = onDrag,
+                onDragEnd = onDragEnd
+            )
+        }
+    }
+}
+
+@Composable
+private fun SupplyItemRow(
+    item: SupplyItem,
+    isDragging: Boolean,
+    onClick: () -> Unit,
+    onChipClick: () -> Unit,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit
+) {
+    val elevation = if (isDragging) 8.dp else 0.dp
+    Surface(tonalElevation = elevation, shadowElevation = elevation) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(start = 4.dp, end = 16.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.DragHandle,
+                contentDescription = "Reorder",
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                modifier = Modifier
+                    .padding(8.dp)
+                    .size(20.dp)
+                    .pointerInput(Unit) {
+                        detectDragGesturesAfterLongPress(
+                            onDragStart = { onDragStart() },
+                            onDrag = { change, offset -> change.consume(); onDrag(offset.y) },
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragEnd
+                        )
+                    }
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(item.name, style = MaterialTheme.typography.bodyLarge)
+                if (item.isClaimed) {
+                    item.claimEntries.forEach { entry ->
+                        val label = if (entry.quantity.isNotBlank()) "${entry.name}: ${entry.quantity}" else entry.name
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    }
+                } else if (item.quantity.isNotBlank()) {
+                    Text(
+                        item.quantity,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+            val names = item.claimedNames
+            if (names.isNotEmpty()) {
+                SuggestionChip(
+                    onClick = onChipClick,
+                    label = { Text(if (names.size == 1) names.first() else "${names.size} claimed") }
+                )
+            } else {
+                OutlinedButton(
+                    onClick = onClick,
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text(
+                        "Claim",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ClaimSheet(
+    item: SupplyItem,
+    currentMember: TripMember?,
+    onDismiss: () -> Unit,
+    onClaim: (TripMember, String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var quantity by remember { mutableStateOf(item.quantity) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // ── Header ────────────────────────────────────────────────────
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    "Claim Item",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "How much are you bringing?",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+
+            // ── Quantity picker label ─────────────────────────────────────
+            Text(
+                "QUANTITY PICKER",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+            )
+            Spacer(Modifier.height(12.dp))
+
+            // ── Wheel pickers ─────────────────────────────────────────────
+            QuantityField(value = quantity, onValueChange = { quantity = it })
+            Spacer(Modifier.height(24.dp))
+
+            // ── Buttons ───────────────────────────────────────────────────
+            if (currentMember == null) {
+                Text(
+                    "You need to be a trip member to claim items.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = onDismiss,
+                    shape = CircleShape,
+                    modifier = Modifier.fillMaxWidth().height(52.dp)
+                ) { Text("Close") }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        shape = CircleShape,
+                        modifier = Modifier.weight(1f).height(52.dp)
+                    ) {
+                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                    }
+                    Button(
+                        onClick = { onClaim(currentMember, quantity.trim()) },
+                        shape = CircleShape,
+                        modifier = Modifier.weight(2f).height(52.dp)
+                    ) {
+                        Text("Confirm Claim", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ManageClaimsDialog(
+    item: SupplyItem,
+    members: List<TripMember>,
+    onDismiss: () -> Unit,
+    onRemoveClaim: (uid: String, displayName: String) -> Unit,
+    onAddMore: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(item.name) },
+        text = {
+            Column {
+                Text("Claimed by:", style = MaterialTheme.typography.labelMedium)
+                Spacer(Modifier.height(8.dp))
+                item.claimEntries.forEach { entry ->
+                    val member = members.find { it.displayName == entry.name }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(entry.name, style = MaterialTheme.typography.bodyLarge)
+                            if (entry.quantity.isNotBlank()) {
+                                Text(
+                                    entry.quantity,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                        TextButton(onClick = {
+                            onRemoveClaim(member?.uid ?: "", entry.name)
+                        }) { Text("Remove") }
+                    }
+                }
+            }
+        },
+        confirmButton = { Button(onClick = onAddMore) { Text("Add Person") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddSupplyItemSheet(
+    existingNames: Set<String>,
+    onDismiss: () -> Unit,
+    onSave: (name: String, category: String, quantity: String) -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState()
+    var name by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(SUPPLY_CATEGORIES.first()) }
+    var quantity by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val trimmedName = name.trim()
+    val isDuplicate = trimmedName.lowercase() in existingNames
+
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
+            Text("Add Supply Item", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Item Name") },
+                singleLine = true,
+                isError = isDuplicate,
+                supportingText = if (isDuplicate) {{ Text("\"$trimmedName\" is already on the list") }} else null,
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Words,
+                    autoCorrectEnabled = false
+                ),
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+            )
+            Spacer(Modifier.height(12.dp))
+            Text("Category", style = MaterialTheme.typography.labelMedium)
+            Spacer(Modifier.height(4.dp))
+            SUPPLY_CATEGORIES.chunked(3).forEach { row ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    row.forEach { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = { selectedCategory = category },
+                            label = { Text(category) }
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            QuantityField(value = quantity, onValueChange = { quantity = it })
+            Spacer(Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { onSave(trimmedName, selectedCategory, quantity.trim()) },
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate
+                ) { Text("Save") }
+            }
+        }
+        LaunchedEffect(Unit) {
+            delay(100)
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+}
+
+@Composable
+private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
+    // Try to parse existing value back into number + unit
+    val match = remember(value) { QUANTITY_PATTERN.matchEntire(value.trim()) }
+    val parsedNumber = match?.groupValues?.get(1)?.toIntOrNull()
+    val parsedUnit = match?.groupValues?.get(2)?.trim()?.lowercase()
+    val unitIndex = if (parsedUnit != null) PICKER_UNITS.indexOfFirst { it == parsedUnit }.takeIf { it >= 0 } else null
+    val canUsePicker = parsedNumber != null && parsedNumber in 1..99 && (unitIndex != null || parsedUnit.isNullOrEmpty())
+
+    val initialNumberIndex = if (canUsePicker && parsedNumber != null) parsedNumber - 1 else 0
+    val initialUnitIndex = unitIndex ?: 0
+
+    var useCustomText by remember { mutableStateOf(false) }
+    var numberIndex by remember { mutableIntStateOf(initialNumberIndex) }
+    var unitIdx by remember { mutableIntStateOf(initialUnitIndex) }
+    var customText by remember { mutableStateOf(if (useCustomText) value else "") }
+
+    // Emit the picker's initial value so the parent has a non-empty quantity
+    LaunchedEffect(Unit) {
+        if (value.isEmpty()) {
+            val num = PICKER_NUMBERS[initialNumberIndex]
+            val unit = PICKER_UNITS[initialUnitIndex]
+            onValueChange("$num $unit".trim())
+        }
+    }
+
+    Column {
+        Text("Quantity", style = MaterialTheme.typography.labelMedium)
+        Spacer(Modifier.height(8.dp))
+
+        if (!useCustomText) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(160.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                WheelPicker(
+                    items = PICKER_NUMBERS,
+                    selectedIndex = numberIndex,
+                    onSelectedChange = { idx ->
+                        numberIndex = idx
+                        val num = PICKER_NUMBERS[idx]
+                        val unit = PICKER_UNITS[unitIdx]
+                        onValueChange("$num $unit".trim())
+                    },
+                    modifier = Modifier.weight(0.8f)
+                )
+                WheelPicker(
+                    items = PICKER_UNITS.map { it.ifEmpty { "—" } },
+                    selectedIndex = unitIdx,
+                    onSelectedChange = { idx ->
+                        unitIdx = idx
+                        val num = PICKER_NUMBERS[numberIndex]
+                        val unit = PICKER_UNITS[idx]
+                        onValueChange("$num $unit".trim())
+                    },
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = { useCustomText = true; customText = ""; onValueChange("") },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) { Text("Type custom amount") }
+        } else {
+            OutlinedTextField(
+                value = customText,
+                onValueChange = { customText = it; onValueChange(it) },
+                label = { Text("Quantity") },
+                placeholder = { Text("e.g. enough, a couple, big ole box") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(4.dp))
+            TextButton(
+                onClick = {
+                    useCustomText = false
+                    numberIndex = 0
+                    unitIdx = 0
+                    onValueChange(PICKER_NUMBERS[0])
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            ) { Text("Use picker") }
+        }
+    }
+}
+
+@Composable
+private fun WheelPicker(
+    items: List<String>,
+    selectedIndex: Int,
+    onSelectedChange: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleCount = 5
+    val itemHeightDp = 36.dp
+    val totalHeight = itemHeightDp * visibleCount
+    val paddingItems = visibleCount / 2
+
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+
+    // Update selection when user scrolling settles (not during programmatic scroll)
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.isScrollInProgress
+        }.collect { scrolling ->
+            if (!scrolling) {
+                val layoutInfo = listState.layoutInfo
+                val viewportCenter = layoutInfo.viewportStartOffset +
+                    (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
+                val centerIdx = layoutInfo.visibleItemsInfo.minByOrNull {
+                    kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
+                }?.index?.minus(paddingItems)?.coerceIn(0, items.lastIndex)
+                if (centerIdx != null && centerIdx != selectedIndex) {
+                    onSelectedChange(centerIdx)
+                }
+            }
+        }
+    }
+
+    Box(modifier = modifier.height(totalHeight)) {
+        // Selection highlight band
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(itemHeightDp)
+                .align(Alignment.Center)
+                .background(
+                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    shape = MaterialTheme.shapes.small
+                )
+        )
+
+        LazyColumn(
+            state = listState,
+            flingBehavior = flingBehavior,
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top padding items
+            items(paddingItems) {
+                Spacer(Modifier.height(itemHeightDp))
+            }
+
+            items(items.size) { index ->
+                val isSelected = index == selectedIndex
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(itemHeightDp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = items[index],
+                        style = if (isSelected) MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                else MaterialTheme.typography.bodyMedium,
+                        color = if (isSelected) MaterialTheme.colorScheme.onSurface
+                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Bottom padding items
+            items(paddingItems) {
+                Spacer(Modifier.height(itemHeightDp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SimpleFlowRow(
+    horizontalSpacing: Dp,
+    verticalSpacing: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val hSpacingPx = with(LocalDensity.current) { horizontalSpacing.roundToPx() }
+    val vSpacingPx = with(LocalDensity.current) { verticalSpacing.roundToPx() }
+
+    Layout(content = content, modifier = modifier) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0)) }
+        val maxWidth = constraints.maxWidth
+
+        var x = 0
+        var y = 0
+        var rowHeight = 0
+        val positions = mutableListOf<Pair<Int, Int>>()
+
+        placeables.forEach { placeable ->
+            if (x + placeable.width > maxWidth && x > 0) {
+                x = 0
+                y += rowHeight + vSpacingPx
+                rowHeight = 0
+            }
+            positions.add(x to y)
+            rowHeight = maxOf(rowHeight, placeable.height)
+            x += placeable.width + hSpacingPx
+        }
+
+        val totalHeight = y + rowHeight
+        layout(maxWidth, totalHeight) {
+            placeables.forEachIndexed { i, placeable ->
+                placeable.placeRelative(positions[i].first, positions[i].second)
+            }
+        }
+    }
+}
