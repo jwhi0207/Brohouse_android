@@ -91,6 +91,7 @@ fun BrohouseTheme(
 
     val view = LocalView.current
     if (!view.isInEditMode) {
+        @Suppress("DEPRECATION") // statusBarColor deprecated in API 35; edge-to-edge migration pending
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()

@@ -693,7 +693,6 @@ fun SuppliesCard(
 // ── House details card (kept for compatibility) ───────────────────────────────
 
 @Composable
-@Composable
 fun HouseDetailsCard(
     details: HouseDetails?,
     guestCount: Int,
@@ -701,6 +700,7 @@ fun HouseDetailsCard(
     modifier: Modifier = Modifier
 ) {
     HouseHeroCard(details = details, guestCount = guestCount, onClick = onClick, modifier = modifier)
+}
 
 @Composable
 fun CarpoolCard(

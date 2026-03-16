@@ -96,53 +96,6 @@ class TripViewModel(
         repo.updateMember(tripId, member.copy(amountPaid = member.amountPaid + amount))
     }
 
-    // ─── Rides ────────────────────────────────────────────────────────────────
-
-    fun addRide(
-        vehicleEmoji: String,
-        vehicleLabel: String,
-        departureLocation: String,
-        totalSeats: Int,
-        departureTime: Long,
-        returnTime: Long,
-        notes: String
-    ) = viewModelScope.launch {
-        val member = members.value.find { it.uid == currentUid } ?: return@launch
-        repo.addRide(tripId, Ride(
-            driverUid = currentUid,
-            driverName = member.displayName,
-            vehicleEmoji = vehicleEmoji,
-            vehicleLabel = vehicleLabel,
-            departureLocation = departureLocation,
-            totalSeats = totalSeats,
-            departureTime = departureTime,
-            returnTime = returnTime,
-            notes = notes
-        ))
-    }
-
-    fun claimSeat(rideId: String) = viewModelScope.launch {
-        val member = members.value.find { it.uid == currentUid } ?: return@launch
-        repo.claimSeat(tripId, rideId, currentUid, member.displayName)
-    }
-
-    fun unclaimSeat(rideId: String) = viewModelScope.launch {
-        repo.unclaimSeat(tripId, rideId, currentUid)
-    }
-
-    fun deleteRide(rideId: String) = viewModelScope.launch {
-        repo.deleteRide(tripId, rideId)
-    }
-
-    fun requestRide() = viewModelScope.launch {
-        val member = members.value.find { it.uid == currentUid } ?: return@launch
-        repo.addRideRequest(tripId, RideRequest(uid = currentUid, displayName = member.displayName))
-    }
-
-    fun cancelRideRequest() = viewModelScope.launch {
-        repo.removeRideRequest(tripId, currentUid)
-    }
-
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
@@ -184,15 +137,6 @@ class TripViewModel(
             Log.e("TripViewModel", "deleteSupplyItem failed", e)
         }
     }
-
-    val rides = repo.getRides(tripId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val rideRequests = repo.getRideRequests(tripId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun canEditRide(ride: Ride): Boolean =
-        currentUid == ride.driverUid || currentUid == (trip.value?.ownerId ?: "")
 
     // ─── Trip ──────────────────────────────────────────────────────────────────
 

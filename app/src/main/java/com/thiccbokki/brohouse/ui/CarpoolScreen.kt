@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -335,7 +336,7 @@ private fun RideCard(
             if (ride.returnTime > 0) {
                 Spacer(Modifier.height(6.dp))
                 RideInfoRow(
-                    icon = Icons.Default.KeyboardReturn,
+                    icon = Icons.AutoMirrored.Filled.KeyboardReturn,
                     label = "RETURN",
                     value = fmt.format(Date(ride.returnTime))
                 )

@@ -33,6 +33,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("DEPRECATION") // LocalClipboardManager — migrate to LocalClipboard + suspend when min API allows
 @Composable
 fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBack: () -> Unit) {
     val trip by viewModel.trip.collectAsState()
