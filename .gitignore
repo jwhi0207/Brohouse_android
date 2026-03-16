@@ -16,3 +16,5 @@ local.properties
 
 # Firebase — contains API keys and project credentials
 app/google-services.json
+keystore.properties
+*.jks
