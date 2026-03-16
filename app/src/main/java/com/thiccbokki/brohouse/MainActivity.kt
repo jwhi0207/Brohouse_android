@@ -16,12 +16,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.thiccbokki.brohouse.auth.AuthState
 import com.thiccbokki.brohouse.auth.AuthViewModel
-import com.thiccbokki.brohouse.ui.CarpoolScreen
-import com.thiccbokki.brohouse.ui.HouseDetailsScreen
-import com.thiccbokki.brohouse.ui.InviteScreen
-import com.thiccbokki.brohouse.ui.TripDashboard
-import com.thiccbokki.brohouse.ui.SuppliesScreen
 import com.thiccbokki.brohouse.ui.TripListScreen
+import com.thiccbokki.brohouse.ui.TripScaffold
 import com.thiccbokki.brohouse.ui.auth.LoginScreen
 import com.thiccbokki.brohouse.ui.auth.RegisterScreen
 import com.thiccbokki.brohouse.ui.theme.BrohouseTheme
@@ -95,52 +91,13 @@ fun BrohouseApp() {
             )
         }
 
-        composable("trip/{tripId}") { backStackEntry ->
-            val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
+        composable("trip/{tripId}") {
             val tripViewModel: TripViewModel = viewModel()
-            TripDashboard(
+            TripScaffold(
                 viewModel = tripViewModel,
                 isAdmin = isAdmin,
-                onNavigateToHouseDetails = { navController.navigate("trip/$tripId/house_details") },
-                onNavigateToSupplies = { navController.navigate("trip/$tripId/supplies") },
-                onNavigateToCarpool = { navController.navigate("trip/$tripId/carpool") },
-                onNavigateToInvite = { navController.navigate("trip/$tripId/invite") },
                 onNavigateBack = { navController.popBackStack() },
                 onSignOut = { authViewModel.signOut() }
-            )
-        }
-
-        composable("trip/{tripId}/supplies") {
-            val tripViewModel: TripViewModel = viewModel()
-            SuppliesScreen(
-                viewModel = tripViewModel,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("trip/{tripId}/house_details") {
-            val tripViewModel: TripViewModel = viewModel()
-            HouseDetailsScreen(
-                viewModel = tripViewModel,
-                isAdmin = isAdmin,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("trip/{tripId}/invite") {
-            val tripViewModel: TripViewModel = viewModel()
-            InviteScreen(
-                viewModel = tripViewModel,
-                isAdmin = isAdmin,
-                onNavigateBack = { navController.popBackStack() }
-            )
-        }
-
-        composable("trip/{tripId}/carpool") {
-            val tripViewModel: TripViewModel = viewModel()
-            CarpoolScreen(
-                viewModel = tripViewModel,
-                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

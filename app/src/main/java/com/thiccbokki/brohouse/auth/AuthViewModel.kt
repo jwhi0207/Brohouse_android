@@ -177,6 +177,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         return GoogleIdTokenCredential.createFrom(response.credential.data).idToken
     }
 
+    fun sendPasswordReset(email: String, onResult: (success: Boolean) -> Unit) =
+        viewModelScope.launch {
+            try {
+                auth.sendPasswordResetEmail(email.trim()).await()
+                onResult(true)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Password reset failed: ${e.message}", e)
+                onResult(false)
+            }
+        }
+
     fun signOut() {
         auth.signOut()
     }

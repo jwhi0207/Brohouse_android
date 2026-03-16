@@ -70,6 +70,8 @@ class TripRepository {
                         thumbnailURL = doc.getString("thumbnailURL"),
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
+                        checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+                        checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                     )
@@ -91,6 +93,8 @@ class TripRepository {
                         thumbnailURL = doc.getString("thumbnailURL"),
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
+                        checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+                        checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
                     )
@@ -211,6 +215,12 @@ class TripRepository {
         tripsCollection.document(tripId).collection("supplies").document(itemId).delete().await()
     }
 
+    // ─── Trip ─────────────────────────────────────────────────────────────────
+
+    suspend fun renameTripName(tripId: String, name: String) {
+        tripsCollection.document(tripId).update("name", name).await()
+    }
+
     // ─── House Details ────────────────────────────────────────────────────────
 
     suspend fun saveHouseDetails(
@@ -218,13 +228,16 @@ class TripRepository {
         url: String,
         nights: Int,
         cost: Double,
-        currentURL: String?
+        checkInMillis: Long,
+        checkOutMillis: Long,
+        currentURL: String?,
+        currentThumbnailURL: String?
     ) {
         val urlChanged = url != (currentURL ?: "")
         val thumbnailURL: String? = if (urlChanged && url.isNotBlank()) {
             withContext(Dispatchers.IO) { fetchAndUploadThumbnail(tripId, url) }
         } else {
-            if (url.isBlank()) null else currentURL
+            if (url.isBlank()) null else currentThumbnailURL
         }
 
         tripsCollection.document(tripId).update(
@@ -232,7 +245,9 @@ class TripRepository {
                 "houseURL" to url,
                 "totalNights" to nights,
                 "totalCost" to cost,
-                "thumbnailURL" to thumbnailURL
+                "thumbnailURL" to thumbnailURL,
+                "checkInMillis" to checkInMillis,
+                "checkOutMillis" to checkOutMillis
             )
         ).await()
     }

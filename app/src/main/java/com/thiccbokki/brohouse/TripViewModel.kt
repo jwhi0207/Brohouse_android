@@ -138,16 +138,25 @@ class TripViewModel(
         }
     }
 
+    // ─── Trip ──────────────────────────────────────────────────────────────────
+
+    fun renameTrip(name: String) = viewModelScope.launch {
+        repo.renameTripName(tripId, name)
+    }
+
     // ─── House Details ─────────────────────────────────────────────────────────
 
-    fun saveHouseDetails(url: String, nights: Int, cost: Double) = viewModelScope.launch {
+    fun saveHouseDetails(url: String, nights: Int, cost: Double, checkInMillis: Long, checkOutMillis: Long) = viewModelScope.launch {
         _isSaving.value = true
         repo.saveHouseDetails(
             tripId = tripId,
             url = url,
             nights = nights,
             cost = cost,
-            currentURL = trip.value?.houseURL
+            checkInMillis = checkInMillis,
+            checkOutMillis = checkOutMillis,
+            currentURL = trip.value?.houseURL,
+            currentThumbnailURL = trip.value?.thumbnailURL
         )
         _isSaving.value = false
         _saveComplete.emit(Unit)
