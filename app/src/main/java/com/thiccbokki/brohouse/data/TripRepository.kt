@@ -1,6 +1,7 @@
 package com.thiccbokki.brohouse.data
 
 import android.util.Log
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
@@ -421,5 +422,110 @@ class TripRepository {
         val current = (trip.get("pendingInviteEmails") as? List<*>)
             ?.filterIsInstance<String>() ?: emptyList()
         tripRef.update("pendingInviteEmails", current.filter { it != email }).await()
+    }
+
+    // ─── Rides ────────────────────────────────────────────────────────────────
+
+    fun getRides(tripId: String): Flow<List<Ride>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("rides")
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getRides listener failed", error)
+                }
+                val rides = snap?.documents?.map { doc ->
+                    Ride(
+                        id = doc.id,
+                        driverUid = doc.getString("driverUid") ?: "",
+                        driverName = doc.getString("driverName") ?: "",
+                        vehicleEmoji = doc.getString("vehicleEmoji") ?: "🚗",
+                        vehicleLabel = doc.getString("vehicleLabel") ?: "",
+                        departureLocation = doc.getString("departureLocation") ?: "",
+                        totalSeats = (doc.getLong("totalSeats") ?: 4L).toInt(),
+                        departureTime = doc.getLong("departureTime") ?: 0L,
+                        returnTime = doc.getLong("returnTime") ?: 0L,
+                        notes = doc.getString("notes") ?: "",
+                        passengerUids = (doc.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        passengerNames = (doc.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                    )
+                } ?: emptyList()
+                trySend(rides)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun addRide(tripId: String, ride: Ride) {
+        val data = mapOf(
+            "driverUid" to ride.driverUid,
+            "driverName" to ride.driverName,
+            "vehicleEmoji" to ride.vehicleEmoji,
+            "vehicleLabel" to ride.vehicleLabel,
+            "departureLocation" to ride.departureLocation,
+            "totalSeats" to ride.totalSeats,
+            "departureTime" to ride.departureTime,
+            "returnTime" to ride.returnTime,
+            "notes" to ride.notes,
+            "passengerUids" to emptyList<String>(),
+            "passengerNames" to emptyList<String>()
+        )
+        tripsCollection.document(tripId).collection("rides").add(data).await()
+    }
+
+    suspend fun claimSeat(tripId: String, rideId: String, uid: String, displayName: String) {
+        tripsCollection.document(tripId).collection("rides").document(rideId)
+            .update(
+                "passengerUids", FieldValue.arrayUnion(uid),
+                "passengerNames", FieldValue.arrayUnion(displayName)
+            ).await()
+    }
+
+    suspend fun unclaimSeat(tripId: String, rideId: String, uid: String, displayName: String) {
+        tripsCollection.document(tripId).collection("rides").document(rideId)
+            .update(
+                "passengerUids", FieldValue.arrayRemove(uid),
+                "passengerNames", FieldValue.arrayRemove(displayName)
+            ).await()
+    }
+
+    suspend fun deleteRide(tripId: String, rideId: String) {
+        tripsCollection.document(tripId).collection("rides").document(rideId).delete().await()
+    }
+
+    suspend fun updateRide(tripId: String, rideId: String, fields: Map<String, Any>) {
+        tripsCollection.document(tripId).collection("rides").document(rideId).update(fields).await()
+    }
+
+    // ─── Ride Requests ────────────────────────────────────────────────────────
+
+    fun getRideRequests(tripId: String): Flow<List<RideRequest>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("rideRequests")
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getRideRequests listener failed", error)
+                }
+                val requests = snap?.documents?.map { doc ->
+                    RideRequest(
+                        uid = doc.getString("uid") ?: doc.id,
+                        displayName = doc.getString("displayName") ?: "",
+                        notes = doc.getString("notes") ?: ""
+                    )
+                } ?: emptyList()
+                trySend(requests)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun addRideRequest(tripId: String, request: RideRequest) {
+        val data = mapOf(
+            "uid" to request.uid,
+            "displayName" to request.displayName,
+            "notes" to request.notes
+        )
+        tripsCollection.document(tripId).collection("rideRequests").document(request.uid).set(data).await()
+    }
+
+    suspend fun removeRideRequest(tripId: String, uid: String) {
+        tripsCollection.document(tripId).collection("rideRequests").document(uid).delete().await()
     }
 }

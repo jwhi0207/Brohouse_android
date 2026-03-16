@@ -30,12 +30,18 @@ class TripViewModel(
     val currentUid: String get() = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     val trip = repo.getTripDetails(tripId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val members = repo.getMembers(tripId)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val supplyItems = repo.getSupplyItems(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val rides = repo.getRides(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val rideRequests = repo.getRideRequests(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
@@ -211,6 +217,108 @@ class TripViewModel(
         _isSaving.value = false
         _saveComplete.emit(Unit)
     }
+
+    // ─── Rides ────────────────────────────────────────────────────────────────
+
+    fun addRide(
+        vehicleEmoji: String,
+        vehicleLabel: String,
+        departureLocation: String,
+        totalSeats: Int,
+        departureTime: Long,
+        returnTime: Long,
+        notes: String
+    ) = viewModelScope.launch {
+        try {
+            val member = members.value.find { it.uid == currentUid } ?: return@launch
+            val ride = Ride(
+                driverUid = currentUid,
+                driverName = member.displayName,
+                vehicleEmoji = vehicleEmoji,
+                vehicleLabel = vehicleLabel,
+                departureLocation = departureLocation,
+                totalSeats = totalSeats,
+                departureTime = departureTime,
+                returnTime = returnTime,
+                notes = notes
+            )
+            repo.addRide(tripId, ride)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "addRide failed", e)
+        }
+    }
+
+    fun claimSeat(rideId: String) = viewModelScope.launch {
+        try {
+            val member = members.value.find { it.uid == currentUid } ?: return@launch
+            repo.claimSeat(tripId, rideId, currentUid, member.displayName)
+            repo.removeRideRequest(tripId, currentUid)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "claimSeat failed", e)
+        }
+    }
+
+    fun unclaimSeat(rideId: String) = viewModelScope.launch {
+        try {
+            val member = members.value.find { it.uid == currentUid } ?: return@launch
+            repo.unclaimSeat(tripId, rideId, currentUid, member.displayName)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "unclaimSeat failed", e)
+        }
+    }
+
+    fun updateRide(
+        rideId: String,
+        vehicleEmoji: String,
+        vehicleLabel: String,
+        departureLocation: String,
+        totalSeats: Int,
+        departureTime: Long,
+        returnTime: Long,
+        notes: String
+    ) = viewModelScope.launch {
+        try {
+            repo.updateRide(tripId, rideId, mapOf(
+                "vehicleEmoji" to vehicleEmoji,
+                "vehicleLabel" to vehicleLabel,
+                "departureLocation" to departureLocation,
+                "totalSeats" to totalSeats,
+                "departureTime" to departureTime,
+                "returnTime" to returnTime,
+                "notes" to notes
+            ))
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "updateRide failed", e)
+        }
+    }
+
+    fun deleteRide(rideId: String) = viewModelScope.launch {
+        try {
+            repo.deleteRide(tripId, rideId)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "deleteRide failed", e)
+        }
+    }
+
+    fun requestRide(notes: String = "") = viewModelScope.launch {
+        try {
+            val member = members.value.find { it.uid == currentUid } ?: return@launch
+            repo.addRideRequest(tripId, RideRequest(uid = currentUid, displayName = member.displayName, notes = notes))
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "requestRide failed", e)
+        }
+    }
+
+    fun cancelRideRequest() = viewModelScope.launch {
+        try {
+            repo.removeRideRequest(tripId, currentUid)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "cancelRideRequest failed", e)
+        }
+    }
+
+    fun canEditRide(ride: Ride): Boolean =
+        currentUid == ride.driverUid || currentUid == (trip.value?.ownerId ?: "")
 
     // ─── Invites ──────────────────────────────────────────────────────────────
 

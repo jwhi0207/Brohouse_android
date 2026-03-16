@@ -43,8 +43,10 @@ fun CarpoolScreen(
 
     var showAddSheet by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<Ride?>(null) }
+    var editingRide by remember { mutableStateOf<Ride?>(null) }
 
     val hasMyRequest = rideRequests.any { it.uid == currentUid }
+    val alreadyOfferedRide = rides.any { it.driverUid == currentUid }
 
     Scaffold(
         topBar = {
@@ -56,13 +58,15 @@ fun CarpoolScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddSheet = true },
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Offer a Ride")
+            if (!alreadyOfferedRide) {
+                FloatingActionButton(
+                    onClick = { showAddSheet = true },
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Offer a Ride")
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -131,6 +135,7 @@ fun CarpoolScreen(
                         canEdit = viewModel.canEditRide(ride),
                         onClaim = { viewModel.claimSeat(ride.id) },
                         onUnclaim = { viewModel.unclaimSeat(ride.id) },
+                        onEdit = { editingRide = ride },
                         onDelete = { deleteTarget = ride },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                     )
@@ -200,6 +205,19 @@ fun CarpoolScreen(
         )
     }
 
+    editingRide?.let { ride ->
+        AddVehicleSheet(
+            initialRide = ride,
+            defaultDepartureMillis = trip?.checkInMillis ?: 0L,
+            defaultReturnMillis = trip?.checkOutMillis ?: 0L,
+            onDismiss = { editingRide = null },
+            onConfirm = { emoji, label, location, seats, depTime, retTime, notes ->
+                viewModel.updateRide(ride.id, emoji, label, location, seats, depTime, retTime, notes)
+                editingRide = null
+            }
+        )
+    }
+
     deleteTarget?.let { ride ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
@@ -227,6 +245,7 @@ private fun RideCard(
     canEdit: Boolean,
     onClaim: () -> Unit,
     onUnclaim: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -282,6 +301,11 @@ private fun RideCard(
                             )
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Edit Ride") },
+                                leadingIcon = { Icon(Icons.Default.Edit, null) },
+                                onClick = { showMenu = false; onEdit() }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Remove Ride") },
                                 leadingIcon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
@@ -505,6 +529,7 @@ private val vehicleEmojis = listOf("🚗", "🚐", "🛻", "🚌", "🏎️", "�
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddVehicleSheet(
+    initialRide: Ride? = null,
     defaultDepartureMillis: Long,
     defaultReturnMillis: Long,
     onDismiss: () -> Unit,
@@ -514,13 +539,13 @@ private fun AddVehicleSheet(
 
     LaunchedEffect(Unit) { sheetState.expand() }
 
-    var selectedEmoji by remember { mutableStateOf("🚗") }
-    var vehicleLabel by remember { mutableStateOf("") }
-    var departureLocation by remember { mutableStateOf("") }
-    var totalSeats by remember { mutableIntStateOf(4) }
-    var departureMillis by remember { mutableLongStateOf(defaultDepartureMillis) }
-    var returnMillis by remember { mutableLongStateOf(defaultReturnMillis) }
-    var notes by remember { mutableStateOf("") }
+    var selectedEmoji by remember { mutableStateOf(initialRide?.vehicleEmoji ?: "🚗") }
+    var vehicleLabel by remember { mutableStateOf(initialRide?.vehicleLabel ?: "") }
+    var departureLocation by remember { mutableStateOf(initialRide?.departureLocation ?: "") }
+    var totalSeats by remember { mutableIntStateOf(initialRide?.totalSeats ?: 4) }
+    var departureMillis by remember { mutableLongStateOf(initialRide?.departureTime ?: defaultDepartureMillis) }
+    var returnMillis by remember { mutableLongStateOf(initialRide?.returnTime ?: defaultReturnMillis) }
+    var notes by remember { mutableStateOf(initialRide?.notes ?: "") }
 
     var showDepDatePicker by remember { mutableStateOf(false) }
     var showDepTimePicker by remember { mutableStateOf(false) }
@@ -541,7 +566,7 @@ private fun AddVehicleSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Offer a Ride", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(if (initialRide != null) "Edit Ride" else "Offer a Ride", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
 
             // Emoji picker
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -719,7 +744,7 @@ private fun AddVehicleSheet(
                     enabled = canConfirm,
                     shape = CircleShape,
                     modifier = Modifier.weight(1f).height(48.dp)
-                ) { Text("Add Ride") }
+                ) { Text(if (initialRide != null) "Save" else "Add Ride") }
             }
         }
     }
