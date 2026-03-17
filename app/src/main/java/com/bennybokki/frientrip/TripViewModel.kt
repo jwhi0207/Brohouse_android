@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
+import com.bennybokki.frientrip.data.CostCalculator
 import com.bennybokki.frientrip.data.Ride
 import com.bennybokki.frientrip.data.RideRequest
 import com.bennybokki.frientrip.data.SupplyItem
@@ -59,26 +60,8 @@ class TripViewModel(
      */
     val memberCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
         combine(members, trip) { memberList, tripData ->
-            computeCostSplit(memberList, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
+            CostCalculator.computeCostSplit(memberList, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
-
-    private fun computeCostSplit(
-        members: List<TripMember>,
-        totalNights: Int,
-        totalCost: Double
-    ): Map<String, Double> {
-        if (totalNights <= 0 || totalCost <= 0.0 || members.isEmpty()) {
-            return members.associate { it.uid to 0.0 }
-        }
-        val nightlyCost = totalCost / totalNights
-        return members.associate { member ->
-            val share = (1..member.nightsStayed).sumOf { night ->
-                val presentCount = members.count { it.nightsStayed >= night }
-                if (presentCount > 0) nightlyCost / presentCount else 0.0
-            }
-            member.uid to share
-        }
-    }
 
     private val _isSaving = MutableStateFlow(false)
     val isSaving = _isSaving.asStateFlow()
@@ -267,7 +250,7 @@ class TripViewModel(
     // ─── Invites ──────────────────────────────────────────────────────────────
 
     fun inviteByEmail(email: String) = viewModelScope.launch {
-        repo.inviteByEmail(tripId, email)
+        repo.inviteByEmail(tripId, email.trim().lowercase())
     }
 
     fun cancelInvite(email: String) = viewModelScope.launch {

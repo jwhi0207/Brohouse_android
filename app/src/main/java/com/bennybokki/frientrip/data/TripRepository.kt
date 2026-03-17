@@ -15,10 +15,10 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.random.Random
 
-class TripRepository {
-
-    private val db = FirebaseFirestore.getInstance()
-    private val storage = FirebaseStorage.getInstance()
+class TripRepository(
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance(),
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+) {
     private val tripsCollection = db.collection("trips")
 
     // ─── Trip CRUD ───────────────────────────────────────────────────────────
@@ -296,6 +296,33 @@ class TripRepository {
     }
 
     // ─── Invites ──────────────────────────────────────────────────────────────
+
+    fun getPendingInviteTrips(email: String): Flow<List<Trip>> = callbackFlow {
+        val listener = tripsCollection
+            .whereArrayContains("pendingInviteEmails", email.trim().lowercase())
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getPendingInviteTrips failed for $email: ${error.message}", error)
+                }
+                val trips = snap?.documents?.map { doc ->
+                    Trip(
+                        id = doc.id,
+                        name = doc.getString("name") ?: "",
+                        ownerId = doc.getString("ownerId") ?: "",
+                        houseURL = doc.getString("houseURL") ?: "",
+                        thumbnailURL = doc.getString("thumbnailURL"),
+                        totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
+                        totalCost = doc.getDouble("totalCost") ?: 0.0,
+                        checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+                        checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
+                        memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                    )
+                } ?: emptyList()
+                trySend(trips)
+            }
+        awaitClose { listener.remove() }
+    }
 
     suspend fun inviteByEmail(tripId: String, email: String) {
         val tripRef = tripsCollection.document(tripId)

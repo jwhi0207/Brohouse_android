@@ -69,12 +69,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 email = user.email ?: "",
                 avatarSeed = doc.getLong("avatarSeed") ?: 0L
             )
-            userRepository.checkAndAcceptPendingInvites(
-                email = user.email ?: "",
-                uid = user.uid,
-                displayName = profile.displayName,
-                avatarSeed = profile.avatarSeed
-            )
+            try {
+                userRepository.checkAndAcceptPendingInvites(
+                    email = user.email ?: "",
+                    uid = user.uid,
+                    displayName = profile.displayName,
+                    avatarSeed = profile.avatarSeed
+                )
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)
+            }
         } catch (e: Exception) {
             Log.e("AuthViewModel", "Sign-in failed: ${e::class.simpleName} — ${e.message}", e)
             _error.value = e.message ?: "Sign in failed"
@@ -95,7 +99,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("users").document(user.uid).get().await()
             val avatarSeed = doc.getLong("avatarSeed") ?: 0L
-            userRepository.checkAndAcceptPendingInvites(email, user.uid, displayName, avatarSeed)
+            try {
+                userRepository.checkAndAcceptPendingInvites(email, user.uid, displayName, avatarSeed)
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)
+            }
         } catch (e: Exception) {
             Log.e("AuthViewModel", "Registration failed: ${e::class.simpleName} — ${e.message}", e)
             _error.value = e.message ?: "Registration failed"
@@ -127,12 +135,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 .collection("users").document(user.uid).get().await()
             val avatarSeed = doc.getLong("avatarSeed") ?: 0L
             val displayNameFinal = doc.getString("displayName") ?: user.displayName ?: ""
-            userRepository.checkAndAcceptPendingInvites(
-                email = user.email ?: "",
-                uid = user.uid,
-                displayName = displayNameFinal,
-                avatarSeed = avatarSeed
-            )
+            try {
+                userRepository.checkAndAcceptPendingInvites(
+                    email = user.email ?: "",
+                    uid = user.uid,
+                    displayName = displayNameFinal,
+                    avatarSeed = avatarSeed
+                )
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)
+            }
         } catch (e: Exception) {
             Log.e("AuthViewModel", "Google sign-in failed: ${e::class.simpleName} — ${e.message}", e)
             _error.value = "Google sign-in failed: ${e::class.simpleName}: ${e.message}"

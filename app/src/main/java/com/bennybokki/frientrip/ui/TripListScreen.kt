@@ -47,6 +47,7 @@ fun TripListScreen(
     onNavigateToTrip: (String) -> Unit
 ) {
     val trips by viewModel.trips.collectAsState()
+    val pendingInviteTrips by viewModel.pendingInviteTrips.collectAsState()
     var selectedTab by remember { mutableStateOf(TripFilter.Upcoming) }
     var showCreateSheet by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
@@ -54,7 +55,7 @@ fun TripListScreen(
     // TODO: split Upcoming/Past by startDate when that field is added to Trip
     val displayedTrips = when (selectedTab) {
         TripFilter.Upcoming, TripFilter.Past -> trips
-        TripFilter.Invites -> emptyList()
+        TripFilter.Invites -> pendingInviteTrips
     }
 
     Scaffold(
@@ -104,6 +105,7 @@ fun TripListScreen(
             ) {
                 items(TripFilter.entries) { tab ->
                     val selected = tab == selectedTab
+                    val badgeCount = if (tab == TripFilter.Invites) pendingInviteTrips.size else 0
                     Surface(
                         onClick = { selectedTab = tab },
                         shape = CircleShape,
@@ -112,12 +114,31 @@ fun TripListScreen(
                         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
                                        else MaterialTheme.colorScheme.onSurfaceVariant
                     ) {
-                        Text(
-                            tab.name,
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                tab.name,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                            if (badgeCount > 0) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.error
+                                ) {
+                                    Text(
+                                        badgeCount.toString(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onError,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -163,7 +184,14 @@ fun TripListScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(displayedTrips, key = { it.id }) { trip ->
-                        TripCard(trip = trip, onClick = { onNavigateToTrip(trip.id) })
+                        if (selectedTab == TripFilter.Invites) {
+                            InviteCard(
+                                trip = trip,
+                                onAccept = { viewModel.acceptInvite(trip.id) }
+                            )
+                        } else {
+                            TripCard(trip = trip, onClick = { onNavigateToTrip(trip.id) })
+                        }
                     }
                 }
             }
@@ -311,6 +339,63 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
                         label = "${trip.memberIds.size} ${if (trip.memberIds.size == 1) "Guest" else "Guests"}"
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InviteCard(trip: Trip, onAccept: () -> Unit) {
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.secondaryContainer
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    trip.name.firstOrNull()?.uppercaseChar()?.toString() ?: "T",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    trip.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "${trip.memberIds.size} ${if (trip.memberIds.size == 1) "member" else "members"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
+            }
+            Button(
+                onClick = onAccept,
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Join", fontWeight = FontWeight.Bold)
             }
         }
     }
