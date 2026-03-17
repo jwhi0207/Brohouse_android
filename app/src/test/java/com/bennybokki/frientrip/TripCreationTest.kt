@@ -3,14 +3,13 @@ package com.bennybokki.frientrip
 import com.bennybokki.frientrip.data.TripRepository
 import com.bennybokki.frientrip.data.UserRepository
 import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.WriteBatch
+import com.google.firebase.storage.FirebaseStorage
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -62,7 +61,7 @@ class TripCreationTest {
             onMemberSet = { capturedMemberData += it }
         )
 
-        val repo = TripRepository(db = db)
+        val repo = TripRepository(db = db, storage = mockk(relaxed = true))
         val tripId = repo.createTrip(
             name = "Beach Weekend",
             ownerId = "uid_owner",
@@ -101,7 +100,7 @@ class TripCreationTest {
             onMemberSet = {}
         )
 
-        TripRepository(db = db).createTrip(
+        TripRepository(db = db, storage = mockk(relaxed = true)).createTrip(
             name = "Ski Trip",
             ownerId = "owner99",
             ownerDisplayName = "Sam",
@@ -148,14 +147,38 @@ class TripCreationTest {
             batch
         }
 
-        val batchFnSlot = slot<(WriteBatch) -> Unit>()
-        every { db.runBatch(capture(batchFnSlot)) } answers {
-            batchFnSlot.captured(batch)
-            Tasks.forResult<Void?>(null)
+        // Use any() + firstArg because runBatch takes WriteBatch.Function (Java SAM),
+        // not a Kotlin function type — slot<(WriteBatch)->Unit> would fail to match.
+        every { db.runBatch(any()) } answers {
+            firstArg<WriteBatch.Function>().apply(batch)
+            completedVoidTask()
         }
 
         return db
     }
 
-    private fun <T> completedTask(result: T): Task<T> = Tasks.forResult(result)
+    /**
+     * Creates an already-completed Task for Void operations (e.g. runBatch, set, update).
+     * Avoids the "parameter is always null" warning from completedTask<Void?>(null).
+     */
+    private fun completedVoidTask(): Task<Void?> {
+        val task = mockk<Task<Void?>>()
+        every { task.isComplete } returns true
+        every { task.isSuccessful } returns true
+        every { task.isCanceled } returns false
+        every { task.result } returns null
+        every { task.exception } returns null
+        return task
+    }
+
+    /** Creates an already-completed Task with a non-null [value]. */
+    private fun <T : Any> completedTask(value: T): Task<T> {
+        val task = mockk<Task<T>>()
+        every { task.isComplete } returns true
+        every { task.isSuccessful } returns true
+        every { task.isCanceled } returns false
+        every { task.result } returns value
+        every { task.exception } returns null
+        return task
+    }
 }

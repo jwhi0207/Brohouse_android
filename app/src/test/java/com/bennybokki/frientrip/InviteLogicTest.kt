@@ -2,7 +2,6 @@ package com.bennybokki.frientrip
 
 import com.bennybokki.frientrip.data.UserRepository
 import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
 import com.google.firebase.firestore.CollectionReference
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
@@ -12,7 +11,6 @@ import com.google.firebase.firestore.QuerySnapshot
 import com.google.firebase.firestore.WriteBatch
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -47,18 +45,27 @@ class InviteLogicTest {
         val querySnap = mockk<QuerySnapshot>()
         val batch = mockk<WriteBatch>(relaxed = true)
 
+        val tripDocRef = mockk<DocumentReference>()
+        val membersTripCol = mockk<CollectionReference>()
+        val memberDocRef = mockk<DocumentReference>()
+
         every { db.collection("trips") } returns tripsCol
         every { db.collection("users") } returns usersCol
+
+        every { tripsCol.document(any()) } returns tripDocRef
+        every { tripDocRef.collection("members") } returns membersTripCol
+        every { membersTripCol.document(any()) } returns memberDocRef
 
         every { tripsCol.whereArrayContains("pendingInviteEmails", normalizedEmail) } returns query
         every { query.get() } returns completedTask(querySnap)
         every { querySnap.documents } returns docs
 
-        // Capture what the batch writes
-        val batchFnSlot = slot<(WriteBatch) -> Unit>()
-        every { db.runBatch(capture(batchFnSlot)) } answers {
-            batchFnSlot.captured(batch)
-            completedTask<Void?>(null)
+        // Invoke the batch function synchronously when runBatch is called.
+        // Use any() + firstArg because runBatch takes WriteBatch.Function (Java SAM),
+        // not a Kotlin function type — slot<(WriteBatch)->Unit> would fail to match.
+        every { db.runBatch(any()) } answers {
+            firstArg<WriteBatch.Function>().apply(batch)
+            completedVoidTask()
         }
         every { batch.update(any<DocumentReference>(), any<Map<String, Any>>()) } returns batch
         every { batch.set(any<DocumentReference>(), any<Map<String, Any>>()) } returns batch
@@ -138,6 +145,28 @@ class InviteLogicTest {
 
     // ─── Helper ──────────────────────────────────────────────────────────────
 
-    /** Creates a Task that is already complete with [result]. */
-    private fun <T> completedTask(result: T): Task<T> = Tasks.forResult(result)
+    /**
+     * Creates an already-completed Task for Void operations (e.g. runBatch).
+     * Avoids the "parameter is always null" warning from completedTask<Void?>(null).
+     */
+    private fun completedVoidTask(): Task<Void?> {
+        val task = mockk<Task<Void?>>()
+        every { task.isComplete } returns true
+        every { task.isSuccessful } returns true
+        every { task.isCanceled } returns false
+        every { task.result } returns null
+        every { task.exception } returns null
+        return task
+    }
+
+    /** Creates an already-completed Task with a non-null [value]. */
+    private fun <T : Any> completedTask(value: T): Task<T> {
+        val task = mockk<Task<T>>()
+        every { task.isComplete } returns true
+        every { task.isSuccessful } returns true
+        every { task.isCanceled } returns false
+        every { task.result } returns value
+        every { task.exception } returns null
+        return task
+    }
 }

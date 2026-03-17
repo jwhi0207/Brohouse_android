@@ -40,6 +40,7 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
     val isSaving by viewModel.isSaving.collectAsState()
 
     var urlText by remember { mutableStateOf("") }
+    var addressText by remember { mutableStateOf("") }
     var nightsText by remember { mutableStateOf("") }
     var costText by remember { mutableStateOf("") }
     var checkInMillis by remember { mutableLongStateOf(0L) }
@@ -57,6 +58,7 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
         val t = trip
         if (!initialized && t != null) {
             urlText = t.houseURL
+            addressText = t.address
             nightsText = if (t.totalNights > 0) "${t.totalNights}" else ""
             costText = if (t.totalCost > 0) String.format("%.2f", t.totalCost) else ""
             checkInMillis = t.checkInMillis
@@ -99,6 +101,7 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                                 onClick = {
                                     if (canSave) viewModel.saveHouseDetails(
                                         url = urlText.trim(),
+                                        address = addressText.trim(),
                                         nights = validNights!!,
                                         cost = validCost!!,
                                         checkInMillis = checkInMillis,
@@ -247,6 +250,28 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                         Text("Open in Browser", style = MaterialTheme.typography.labelMedium)
                     }
                 }
+            }
+
+            // ── Address ───────────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    "Address",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                OutlinedTextField(
+                    value = addressText,
+                    onValueChange = { if (isAdmin) addressText = it },
+                    placeholder = { Text("123 Beach Rd, Malibu, CA 90265") },
+                    singleLine = true,
+                    readOnly = !isAdmin,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    trailingIcon = {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // ── Total Nights + Total Cost ─────────────────────────────────────

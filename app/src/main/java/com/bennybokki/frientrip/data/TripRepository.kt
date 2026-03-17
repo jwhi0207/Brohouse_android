@@ -37,6 +37,7 @@ class TripRepository(
             "ownerId" to ownerId,
             "houseURL" to "",
             "thumbnailURL" to null,
+            "address" to "",
             "totalNights" to 0,
             "totalCost" to 0.0,
             "memberIds" to listOf(ownerId),
@@ -68,6 +69,7 @@ class TripRepository(
                         ownerId = doc.getString("ownerId") ?: "",
                         houseURL = doc.getString("houseURL") ?: "",
                         thumbnailURL = doc.getString("thumbnailURL"),
+                        address = doc.getString("address") ?: "",
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
@@ -91,6 +93,7 @@ class TripRepository(
                         ownerId = doc.getString("ownerId") ?: "",
                         houseURL = doc.getString("houseURL") ?: "",
                         thumbnailURL = doc.getString("thumbnailURL"),
+                        address = doc.getString("address") ?: "",
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
@@ -226,6 +229,7 @@ class TripRepository(
     suspend fun saveHouseDetails(
         tripId: String,
         url: String,
+        address: String,
         nights: Int,
         cost: Double,
         checkInMillis: Long,
@@ -249,6 +253,7 @@ class TripRepository(
         tripsCollection.document(tripId).update(
             mapOf(
                 "houseURL" to url,
+                "address" to address,
                 "totalNights" to nights,
                 "totalCost" to cost,
                 "thumbnailURL" to thumbnailURL,
@@ -330,6 +335,7 @@ class TripRepository(
                         ownerId = doc.getString("ownerId") ?: "",
                         houseURL = doc.getString("houseURL") ?: "",
                         thumbnailURL = doc.getString("thumbnailURL"),
+                        address = doc.getString("address") ?: "",
                         totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
                         totalCost = doc.getDouble("totalCost") ?: 0.0,
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
