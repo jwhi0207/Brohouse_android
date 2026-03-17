@@ -3,6 +3,7 @@ package com.bennybokki.frientrip.ui
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -125,10 +126,16 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
         ) {
             // ── Hero image ────────────────────────────────────────────────────
             val thumbnailURL = trip?.thumbnailURL
+            val houseURL = trip?.houseURL.orEmpty()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(16f / 9f)
+                    .then(
+                        if (houseURL.isNotBlank()) Modifier.clickable {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(houseURL)))
+                        } else Modifier
+                    )
             ) {
                 if (!thumbnailURL.isNullOrBlank()) {
                     AsyncImage(
@@ -171,6 +178,34 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                         modifier = Modifier.padding(12.dp)
                     )
                 }
+                // "Open listing" badge — top-right, only when a URL is set
+                if (houseURL.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xBB000000),
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.OpenInBrowser,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                "View Listing",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
             }
 
             // ── Admin banner ──────────────────────────────────────────────────
@@ -207,41 +242,42 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                 }
             }
 
-            // ── House URL ─────────────────────────────────────────────────────
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "House URL",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-                OutlinedTextField(
-                    value = urlText,
-                    onValueChange = { if (isAdmin) urlText = it },
-                    placeholder = { Text("https://rentals.com/villa-123") },
-                    singleLine = true,
-                    readOnly = !isAdmin,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-                    trailingIcon = if (isAdmin) ({
-                        IconButton(onClick = {
-                            clipboardManager.getText()?.text?.let { urlText = it }
-                        }) {
-                            Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
-                        }
-                    }) else null,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                val url = urlText.trim()
-                if (url.isNotBlank()) {
-                    TextButton(
-                        onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            // ── House URL (admin only) ────────────────────────────────────────
+            if (isAdmin) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        "House URL",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    OutlinedTextField(
+                        value = urlText,
+                        onValueChange = { urlText = it },
+                        placeholder = { Text("https://rentals.com/villa-123") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                clipboardManager.getText()?.text?.let { urlText = it }
+                            }) {
+                                Icon(Icons.Default.ContentPaste, contentDescription = "Paste")
+                            }
                         },
-                        modifier = Modifier.align(Alignment.End)
-                    ) {
-                        Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Open in Browser", style = MaterialTheme.typography.labelMedium)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    val url = urlText.trim()
+                    if (url.isNotBlank()) {
+                        TextButton(
+                            onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            },
+                            modifier = Modifier.align(Alignment.End)
+                        ) {
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Open in Browser", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }
@@ -255,10 +291,10 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                 )
                 OutlinedTextField(
                     value = addressText,
-                    onValueChange = { if (isAdmin) addressText = it },
+                    onValueChange = { addressText = it },
                     placeholder = { Text("123 Beach Rd, Malibu, CA 90265") },
                     singleLine = true,
-                    readOnly = !isAdmin,
+                    enabled = isAdmin,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                     trailingIcon = {
                         Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -274,10 +310,10 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                     Text("Total Nights", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = nightsText,
-                        onValueChange = { if (isAdmin) nightsText = it.filter(Char::isDigit) },
+                        onValueChange = { nightsText = it.filter(Char::isDigit) },
                         placeholder = { Text("5") },
                         singleLine = true,
-                        readOnly = !isAdmin,
+                        enabled = isAdmin,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         trailingIcon = { Icon(Icons.Default.NightlightRound, contentDescription = null, modifier = Modifier.size(18.dp)) },
                         shape = RoundedCornerShape(12.dp),
@@ -288,11 +324,11 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                     Text("Total Cost", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                     OutlinedTextField(
                         value = costText,
-                        onValueChange = { if (isAdmin) costText = it },
+                        onValueChange = { costText = it },
                         placeholder = { Text("1,200") },
                         prefix = { Text("$ ") },
                         singleLine = true,
-                        readOnly = !isAdmin,
+                        enabled = isAdmin,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()

@@ -461,7 +461,7 @@ private fun StackedAvatars(passengerUids: List<String>, members: List<TripMember
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface)
             ) {
-                AvatarView(seed = member.avatarSeed, size = avatarSizePx.dp)
+                AvatarView(seed = member.avatarSeed, name = member.displayName, size = avatarSizePx.dp)
             }
         }
     }) { measurables, constraints ->
@@ -499,7 +499,7 @@ private fun RideRequestRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (member != null) {
-                AvatarView(seed = member.avatarSeed, size = 40.dp)
+                AvatarView(seed = member.avatarSeed, name = member.displayName, size = 40.dp)
             } else {
                 Box(
                     modifier = Modifier

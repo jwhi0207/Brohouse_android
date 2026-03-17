@@ -16,6 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.bennybokki.frientrip.auth.AuthState
 import com.bennybokki.frientrip.auth.AuthViewModel
+import com.bennybokki.frientrip.ui.ProfileScreen
 import com.bennybokki.frientrip.ui.TripListScreen
 import com.bennybokki.frientrip.ui.TripScaffold
 import com.bennybokki.frientrip.ui.auth.LoginScreen
@@ -96,6 +97,15 @@ fun BrohouseApp() {
             TripScaffold(
                 viewModel = tripViewModel,
                 isAdmin = isAdmin,
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToProfile = { navController.navigate("profile") }
+            )
+        }
+
+        composable("profile") {
+            val profileViewModel: ProfileViewModel = viewModel()
+            ProfileScreen(
+                viewModel = profileViewModel,
                 onNavigateBack = { navController.popBackStack() },
                 onSignOut = { authViewModel.signOut() }
             )
