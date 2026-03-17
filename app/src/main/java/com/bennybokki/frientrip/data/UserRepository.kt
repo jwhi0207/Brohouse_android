@@ -8,9 +8,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import kotlin.random.Random
 
-class UserRepository {
-
-    private val db = FirebaseFirestore.getInstance()
+class UserRepository(
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
+) {
     private val usersCollection = db.collection("users")
     private val tripsCollection = db.collection("trips")
 
@@ -73,8 +73,9 @@ class UserRepository {
 
     /** On login/register, check if this user's email has any pending trip invites and accept them. */
     suspend fun checkAndAcceptPendingInvites(email: String, uid: String, displayName: String, avatarSeed: Long) {
+        val normalizedEmail = email.trim().lowercase()
         val trips = tripsCollection
-            .whereArrayContains("pendingInviteEmails", email)
+            .whereArrayContains("pendingInviteEmails", normalizedEmail)
             .get()
             .await()
 
@@ -93,7 +94,7 @@ class UserRepository {
                     tripsCollection.document(tripId),
                     mapOf(
                         "memberIds" to currentMembers + uid,
-                        "pendingInviteEmails" to currentPending.filter { it != email }
+                        "pendingInviteEmails" to currentPending.filter { it != normalizedEmail }
                     )
                 )
                 // Create member subcollection doc
