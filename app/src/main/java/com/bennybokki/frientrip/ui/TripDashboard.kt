@@ -9,7 +9,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.*
@@ -55,7 +54,7 @@ fun TripDashboard(
     onNavigateToCarpool: () -> Unit,
     onNavigateToInvite: () -> Unit,
     onNavigateBack: () -> Unit,
-    onSignOut: () -> Unit = {}
+    onNavigateToProfile: () -> Unit = {}
 ) {
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
@@ -65,9 +64,10 @@ fun TripDashboard(
     val memberCosts by viewModel.memberCosts.collectAsState()
     val currentUid = viewModel.currentUid
 
+    val currentMember = members.find { it.uid == currentUid }
+
     var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
     var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
-    var showOverflowMenu by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
     val houseDetails = trip?.let {
@@ -125,19 +125,15 @@ fun TripDashboard(
                             Icon(Icons.Default.PersonAdd, contentDescription = "Invite People")
                         }
                     }
-                    Box {
-                        IconButton(onClick = { showOverflowMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More options")
-                        }
-                        DropdownMenu(
-                            expanded = showOverflowMenu,
-                            onDismissRequest = { showOverflowMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Sign Out") },
-                                leadingIcon = { Icon(Icons.AutoMirrored.Filled.Logout, null) },
-                                onClick = { showOverflowMenu = false; onSignOut() }
+                    IconButton(onClick = onNavigateToProfile) {
+                        if (currentMember != null) {
+                            AvatarView(
+                                seed = currentMember.avatarSeed,
+                                name = currentMember.displayName,
+                                size = 34.dp
                             )
+                        } else {
+                            Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                         }
                     }
                 },
@@ -641,7 +637,7 @@ fun MemberRowView(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarView(seed = member.avatarSeed)
+        AvatarView(seed = member.avatarSeed, name = member.displayName)
         Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {

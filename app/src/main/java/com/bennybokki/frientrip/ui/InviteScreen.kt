@@ -209,6 +209,7 @@ fun InviteScreen(
                 ) {
                     AvatarView(
                         seed = member.avatarSeed,
+                        name = member.displayName,
                         size = 48.dp
                     )
                     Spacer(Modifier.width(16.dp))

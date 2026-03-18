@@ -48,11 +48,16 @@ fun TripScaffold(
     viewModel: TripViewModel,
     isAdmin: Boolean,
     onNavigateBack: () -> Unit,
-    onSignOut: () -> Unit
+    onNavigateToProfile: () -> Unit
 ) {
     val innerNav = rememberNavController()
     val backStackEntry by innerNav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
+
+    // Trip Managers (trip creators) get the same permissions as global admins,
+    // but only within the trip they own.
+    val trip by viewModel.trip.collectAsState()
+    val isTripAdmin = isAdmin || trip?.ownerId == viewModel.currentUid
 
     fun navigateToTab(route: String) {
         innerNav.navigate(route) {
@@ -90,19 +95,19 @@ fun TripScaffold(
             composable("dashboard") {
                 TripDashboard(
                     viewModel = viewModel,
-                    isAdmin = isAdmin,
+                    isAdmin = isTripAdmin,
                     onNavigateToHouseDetails = { navigateToTab("house") },
                     onNavigateToSupplies = { navigateToTab("supplies") },
                     onNavigateToCarpool = { navigateToTab("carpool") },
                     onNavigateToInvite = { navigateToTab("group") },
                     onNavigateBack = onNavigateBack,
-                    onSignOut = onSignOut
+                    onNavigateToProfile = onNavigateToProfile
                 )
             }
             composable("house") {
                 HouseDetailsScreen(
                     viewModel = viewModel,
-                    isAdmin = isAdmin,
+                    isAdmin = isTripAdmin,
                     onNavigateBack = { innerNav.popBackStack() }
                 )
             }
@@ -121,7 +126,7 @@ fun TripScaffold(
             composable("group") {
                 InviteScreen(
                     viewModel = viewModel,
-                    isAdmin = isAdmin,
+                    isAdmin = isTripAdmin,
                     onNavigateBack = { innerNav.popBackStack() }
                 )
             }

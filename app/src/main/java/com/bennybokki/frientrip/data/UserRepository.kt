@@ -52,6 +52,48 @@ class UserRepository(
         }
     }
 
+    /**
+     * Update display name and avatar color index for a user.
+     * Propagates the change to all trip member sub-documents where this user appears.
+     */
+    suspend fun updateProfile(uid: String, displayName: String, colorIndex: Int) {
+        val colorSeed = colorIndex.toLong()
+
+        // 1. Update the user's own profile doc (merge in case doc doesn't exist yet)
+        usersCollection.document(uid).set(
+            mapOf(
+                "displayName" to displayName,
+                "avatarSeed" to colorSeed
+            ),
+            SetOptions.merge()
+        ).await()
+
+        // 2. Propagate to every trip the user is a member of
+        val trips = tripsCollection
+            .whereArrayContains("memberIds", uid)
+            .get()
+            .await()
+
+        if (trips.documents.isEmpty()) return
+
+        db.runBatch { batch ->
+            for (tripDoc in trips.documents) {
+                val memberRef = tripsCollection
+                    .document(tripDoc.id)
+                    .collection("members")
+                    .document(uid)
+                batch.set(
+                    memberRef,
+                    mapOf(
+                        "displayName" to displayName,
+                        "avatarSeed" to colorSeed
+                    ),
+                    SetOptions.merge()
+                )
+            }
+        }.await()
+    }
+
     fun getUserProfile(uid: String): Flow<UserProfile?> = callbackFlow {
         val listener = usersCollection.document(uid).addSnapshotListener { snap, _ ->
             if (snap != null && snap.exists()) {
