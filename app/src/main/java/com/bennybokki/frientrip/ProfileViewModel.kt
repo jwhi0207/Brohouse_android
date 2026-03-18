@@ -29,6 +29,11 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
     private val _saveComplete = MutableSharedFlow<Unit>()
     val saveComplete = _saveComplete.asSharedFlow()
 
+    private val _saveError = MutableStateFlow<String?>(null)
+    val saveError = _saveError.asStateFlow()
+
+    fun clearError() { _saveError.value = null }
+
     init {
         val uid = currentUid
         if (uid.isNotEmpty()) {
@@ -43,10 +48,12 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         if (uid.isEmpty() || displayName.isBlank()) return@launch
         _isSaving.value = true
         try {
+            _saveError.value = null
             userRepo.updateProfile(uid, displayName.trim(), colorIndex)
             _saveComplete.emit(Unit)
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Save failed: ${e.message}", e)
+            _saveError.value = "Save failed. Please try again."
         } finally {
             _isSaving.value = false
         }

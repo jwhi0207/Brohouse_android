@@ -33,10 +33,19 @@ fun ProfileScreen(
 ) {
     val profile by viewModel.profile.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
+    val saveError by viewModel.saveError.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var nameText by remember { mutableStateOf("") }
     var selectedColor by remember { mutableIntStateOf(0) }
     var initialized by remember { mutableStateOf(false) }
+
+    LaunchedEffect(saveError) {
+        saveError?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
 
     LaunchedEffect(profile) {
         val p = profile
@@ -54,6 +63,7 @@ fun ProfileScreen(
     val canSave = nameText.trim().isNotEmpty() && !isSaving
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {

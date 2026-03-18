@@ -59,12 +59,13 @@ class UserRepository(
     suspend fun updateProfile(uid: String, displayName: String, colorIndex: Int) {
         val colorSeed = colorIndex.toLong()
 
-        // 1. Update the user's own profile doc
-        usersCollection.document(uid).update(
+        // 1. Update the user's own profile doc (merge in case doc doesn't exist yet)
+        usersCollection.document(uid).set(
             mapOf(
                 "displayName" to displayName,
                 "avatarSeed" to colorSeed
-            )
+            ),
+            SetOptions.merge()
         ).await()
 
         // 2. Propagate to every trip the user is a member of
@@ -81,12 +82,13 @@ class UserRepository(
                     .document(tripDoc.id)
                     .collection("members")
                     .document(uid)
-                batch.update(
+                batch.set(
                     memberRef,
                     mapOf(
                         "displayName" to displayName,
                         "avatarSeed" to colorSeed
-                    )
+                    ),
+                    SetOptions.merge()
                 )
             }
         }.await()
