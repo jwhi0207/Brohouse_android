@@ -8,7 +8,9 @@ plugins {
 
 val keystoreProperties = Properties().apply {
     val propsFile = rootProject.file("keystore.properties")
-    if (propsFile.exists()) load(propsFile.inputStream())
+    if (propsFile.exists()) {
+        propsFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -18,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.bennybokki.frientrip"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 
@@ -27,10 +29,13 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
+            val storeFilePath = keystoreProperties["storeFile"] as? String
+            if (storeFilePath != null) {
+                storeFile = file(storeFilePath)
+                storePassword = keystoreProperties["storePassword"] as? String
+                keyAlias = keystoreProperties["keyAlias"] as? String
+                keyPassword = keystoreProperties["keyPassword"] as? String
+            }
         }
     }
 
