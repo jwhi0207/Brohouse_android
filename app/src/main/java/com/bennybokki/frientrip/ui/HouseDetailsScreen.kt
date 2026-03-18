@@ -482,7 +482,9 @@ private fun formatTime(millis: Long): String =
 
 /** Keep existing time, replace date portion. */
 private fun mergeDateTime(dateMillis: Long, existingMillis: Long): Long {
-    val dateCal = Calendar.getInstance().apply { timeInMillis = dateMillis }
+    // DatePicker always returns UTC midnight — read date fields in UTC so they aren't shifted
+    // by the device's local timezone offset (e.g. UTC-5 would turn Mar 18 00:00 UTC → Mar 17).
+    val dateCal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply { timeInMillis = dateMillis }
     val timeCal = Calendar.getInstance().apply {
         timeInMillis = if (existingMillis > 0) existingMillis else dateMillis
     }

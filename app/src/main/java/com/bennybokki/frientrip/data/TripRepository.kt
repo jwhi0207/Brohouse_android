@@ -234,10 +234,16 @@ class TripRepository(
         currentThumbnailURL: String?
     ) {
         val urlChanged = url != (currentURL ?: "")
-        val thumbnailURL: String? = if (urlChanged && url.isNotBlank()) {
-            withContext(Dispatchers.IO) { fetchAndUploadThumbnail(tripId, url) }
-        } else {
-            if (url.isBlank()) null else currentThumbnailURL
+        val thumbnailMissing = currentThumbnailURL.isNullOrBlank()
+        val thumbnailURL: String? = when {
+            // URL explicitly cleared → remove thumbnail
+            url.isBlank() -> null
+            // URL changed, or a URL exists but thumbnail was previously lost → (re-)fetch
+            // Falls back to currentThumbnailURL so a failed fetch never nukes a good stored image
+            urlChanged || thumbnailMissing -> withContext(Dispatchers.IO) { fetchAndUploadThumbnail(tripId, url) }
+                ?: currentThumbnailURL
+            // URL unchanged and thumbnail already stored → preserve as-is
+            else -> currentThumbnailURL
         }
 
         tripsCollection.document(tripId).update(
@@ -254,14 +260,23 @@ class TripRepository(
 
     private suspend fun fetchAndUploadThumbnail(tripId: String, urlString: String): String? {
         return try {
+            Log.d("TripRepository", "fetchAndUploadThumbnail: fetching HTML from $urlString")
             val conn = URL(urlString).openConnection() as HttpURLConnection
             conn.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible)")
             conn.connectTimeout = 10_000
             conn.readTimeout = 10_000
+            val responseCode = conn.responseCode
+            Log.d("TripRepository", "fetchAndUploadThumbnail: HTTP $responseCode")
             val html = conn.inputStream.bufferedReader().readText()
             conn.disconnect()
 
-            val imageUrlString = extractOGImageURL(html) ?: return null
+            val imageUrlString = extractOGImageURL(html)
+            if (imageUrlString == null) {
+                Log.w("TripRepository", "fetchAndUploadThumbnail: no og:image tag found in HTML (${html.length} chars)")
+                return null
+            }
+            Log.d("TripRepository", "fetchAndUploadThumbnail: og:image = $imageUrlString")
+
             val resolved = when {
                 imageUrlString.startsWith("//") -> "https:$imageUrlString"
                 imageUrlString.startsWith("http") -> imageUrlString
@@ -273,12 +288,16 @@ class TripRepository(
             imgConn.readTimeout = 10_000
             val bytes = imgConn.inputStream.readBytes()
             imgConn.disconnect()
+            Log.d("TripRepository", "fetchAndUploadThumbnail: downloaded ${bytes.size} bytes from $resolved")
 
             // Upload to Firebase Storage
             val ref = storage.reference.child("thumbnails/$tripId.jpg")
             ref.putBytes(bytes).await()
-            ref.downloadUrl.await().toString()
+            val downloadUrl = ref.downloadUrl.await().toString()
+            Log.d("TripRepository", "fetchAndUploadThumbnail: uploaded → $downloadUrl")
+            downloadUrl
         } catch (e: Exception) {
+            Log.e("TripRepository", "fetchAndUploadThumbnail failed: ${e::class.simpleName} — ${e.message}", e)
             null
         }
     }
