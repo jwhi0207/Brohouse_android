@@ -129,11 +129,12 @@ class TripViewModel(
 
     // ─── House Details ─────────────────────────────────────────────────────────
 
-    fun saveHouseDetails(url: String, nights: Int, cost: Double, checkInMillis: Long, checkOutMillis: Long) = viewModelScope.launch {
+    fun saveHouseDetails(url: String, address: String, nights: Int, cost: Double, checkInMillis: Long, checkOutMillis: Long) = viewModelScope.launch {
         _isSaving.value = true
         repo.saveHouseDetails(
             tripId = tripId,
             url = url,
+            address = address,
             nights = nights,
             cost = cost,
             checkInMillis = checkInMillis,

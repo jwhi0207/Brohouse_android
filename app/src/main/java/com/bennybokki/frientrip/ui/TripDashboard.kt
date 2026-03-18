@@ -23,9 +23,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.bennybokki.frientrip.TripViewModel
@@ -70,6 +76,7 @@ fun TripDashboard(
             totalNights = it.totalNights,
             totalCost = it.totalCost,
             thumbnailURL = it.thumbnailURL,
+            address = it.address,
             checkInMillis = it.checkInMillis,
             checkOutMillis = it.checkOutMillis
         )
@@ -345,7 +352,10 @@ fun HouseHeroCard(
     val totalNights = details?.totalNights ?: 0
     val totalCost = details?.totalCost ?: 0.0
     val thumbnailURL = details?.thumbnailURL
+    val address = details?.address.orEmpty()
     val currency = NumberFormat.getCurrencyInstance(Locale.US)
+    val context = LocalContext.current
+    val clipboard = LocalClipboardManager.current
 
     Card(
         onClick = onClick,
@@ -353,6 +363,7 @@ fun HouseHeroCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier.fillMaxWidth()
     ) {
+        Column {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -460,7 +471,53 @@ fun HouseHeroCard(
                     )
                 }
             }
+        } // end Box
+
+        // ── Address row ──────────────────────────────────────────────────
+        if (address.isNotBlank()) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(start = 14.dp, end = 4.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    address,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { clipboard.setText(AnnotatedString(address)) }
+                )
+                Spacer(Modifier.width(4.dp))
+                IconButton(
+                    onClick = {
+                        val uri = Uri.parse("geo:0,0?q=${Uri.encode(address)}")
+                        context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                    },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Navigation,
+                        contentDescription = "Open in Maps",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
+        } // end Column
     }
 }
 

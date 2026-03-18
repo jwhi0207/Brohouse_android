@@ -6,6 +6,7 @@ data class Trip(
     val ownerId: String = "",
     val houseURL: String = "",
     val thumbnailURL: String? = null,
+    val address: String = "",
     val totalNights: Int = 0,
     val totalCost: Double = 0.0,
     val checkInMillis: Long = 0L,
