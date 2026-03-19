@@ -87,6 +87,17 @@ jobs:
           path: app/build/outputs/bundle/release/*.aab
           retention-days: 30
 
+      # Deploy to Google Play (Internal track) on push to main or manual trigger
+      - name: Deploy to Google Play (Internal)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.bennybokki.frientrip
+          releaseFiles: app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
+
       # Deploy to Firebase App Distribution only on push to main or manual trigger
       - name: Deploy to Firebase App Distribution
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
