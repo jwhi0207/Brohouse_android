@@ -91,6 +91,7 @@ val QUICK_ADD_ITEMS = listOf(
 @Composable
 fun SuppliesScreen(
     viewModel: TripViewModel,
+    isAdmin: Boolean = false,
     onNavigateBack: () -> Unit
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
@@ -265,6 +266,7 @@ fun SuppliesScreen(
                         if (!isCollapsed) {
                             ReorderableCategory(
                                 items = categoryItems,
+                                isAdmin = isAdmin,
                                 onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
                                 onClaim = { detailItem = it },
                                 onManageClaims = { detailItem = it },
@@ -287,6 +289,11 @@ fun SuppliesScreen(
             onSave = { name, category, quantity ->
                 viewModel.addSupplyItem(name, category, quantity)
                 showAddSheet = false
+            },
+            onSaveAndClaim = { name, category, quantity ->
+                viewModel.addSupplyItem(name, category, quantity)
+                pendingQuickAddName = name
+                showAddSheet = false
             }
         )
     }
@@ -297,6 +304,7 @@ fun SuppliesScreen(
             item = item,
             currentMember = currentMember,
             members = members,
+            isAdmin = isAdmin,
             onDismiss = { detailItem = null },
             onClaim = { member, quantity ->
                 viewModel.claimSupplyItem(item, member, quantity)
@@ -389,6 +397,7 @@ private fun CategoryHeader(
 @Composable
 private fun ReorderableCategory(
     items: List<SupplyItem>,
+    isAdmin: Boolean = false,
     onReorder: (List<SupplyItem>) -> Unit,
     onClaim: (SupplyItem) -> Unit,
     onManageClaims: (SupplyItem) -> Unit,
@@ -406,6 +415,7 @@ private fun ReorderableCategory(
                 SwipeToDismissItem(
                     item = item,
                     isDragging = isDragging,
+                    isAdmin = isAdmin,
                     dragOffset = if (isDragging) dragOffset else 0f,
                     onClaim = { onClaim(item) },
                     onManageClaims = { onManageClaims(item) },
@@ -437,6 +447,7 @@ private fun ReorderableCategory(
 private fun SwipeToDismissItem(
     item: SupplyItem,
     isDragging: Boolean,
+    isAdmin: Boolean = false,
     dragOffset: Float,
     onClaim: () -> Unit,
     onManageClaims: () -> Unit,
@@ -473,7 +484,7 @@ private fun SwipeToDismissItem(
                 }
             },
             enableDismissFromStartToEnd = false,
-            enableDismissFromEndToStart = !isDragging
+            enableDismissFromEndToStart = !isDragging && isAdmin
         ) {
             SupplyItemRow(
                 item = item,
@@ -573,6 +584,7 @@ private fun ItemDetailSheet(
     item: SupplyItem,
     currentMember: TripMember?,
     members: List<TripMember>,
+    isAdmin: Boolean = false,
     onDismiss: () -> Unit,
     onClaim: (TripMember, String) -> Unit,
     onRemoveClaim: (uid: String, displayName: String) -> Unit
@@ -664,7 +676,7 @@ private fun ItemDetailSheet(
                                         )
                                     }
                                 }
-                                if (isMe) {
+                                if (isMe || isAdmin) {
                                     TextButton(onClick = {
                                         onRemoveClaim(member?.uid ?: "", entry.name)
                                     }) {
@@ -761,7 +773,8 @@ private fun ItemDetailSheet(
 private fun AddSupplyItemSheet(
     existingNames: Set<String>,
     onDismiss: () -> Unit,
-    onSave: (name: String, category: String, quantity: String) -> Unit
+    onSave: (name: String, category: String, quantity: String) -> Unit,
+    onSaveAndClaim: (name: String, category: String, quantity: String) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var name by remember { mutableStateOf("") }
@@ -814,13 +827,24 @@ private fun AddSupplyItemSheet(
             Spacer(Modifier.height(12.dp))
             QuantityField(value = quantity, onValueChange = { quantity = it })
             Spacer(Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-                Spacer(Modifier.width(8.dp))
-                Button(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Cancel") }
+                OutlinedButton(
                     onClick = { onSave(trimmedName, selectedCategory, quantity.trim()) },
-                    enabled = trimmedName.isNotEmpty() && !isDuplicate
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate,
+                    modifier = Modifier.weight(1f)
                 ) { Text("Save") }
+                Button(
+                    onClick = { onSaveAndClaim(trimmedName, selectedCategory, quantity.trim()) },
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate,
+                    modifier = Modifier.weight(1.5f)
+                ) { Text("Save & Claim") }
             }
         }
         LaunchedEffect(Unit) {
