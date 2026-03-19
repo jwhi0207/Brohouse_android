@@ -1,7 +1,9 @@
 package com.bennybokki.frientrip.ui
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,9 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -34,7 +38,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
@@ -50,13 +53,12 @@ private fun categoryIcon(category: String): ImageVector = when (category) {
     "Food"                    -> Icons.Default.Restaurant
     "Disposables"             -> Icons.Default.ShoppingBag
     "Entertainment"           -> Icons.Default.SportsEsports
-    "Drugs & Paraphernalia"   -> Icons.Default.Eco
+    "Outdoor & Games"         -> Icons.Default.SportsBaseball
     else                      -> Icons.Default.Category
 }
 
-val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Drugs & Paraphernalia", "Other")
+val SUPPLY_CATEGORIES = listOf("Food", "Disposables", "Entertainment", "Outdoor & Games", "Other")
 
-private val PICKER_NUMBERS = (1..99).map { it.toString() }
 private val PICKER_UNITS = listOf(
     "", "pieces", "dozen", "packs", "boxes",
     "bags", "cases", "bottles", "cans", "lbs", "oz", "gallons", "liters"
@@ -80,30 +82,39 @@ val QUICK_ADD_ITEMS = listOf(
     QuickAddItem("Plastic Cups", "Disposables"),
     QuickAddItem("Plastic Utensils", "Disposables"),
     QuickAddItem("Bluetooth Speaker", "Entertainment"),
-    QuickAddItem("Weed", "Drugs & Paraphernalia"),
-    QuickAddItem("Shrooms", "Drugs & Paraphernalia"),
+    QuickAddItem("Cards", "Outdoor & Games"),
+    QuickAddItem("Board Games", "Outdoor & Games"),
+    QuickAddItem("S'mores Kit", "Food"),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SuppliesScreen(
     viewModel: TripViewModel,
+    isAdmin: Boolean = false,
     onNavigateBack: () -> Unit
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
     val members by viewModel.members.collectAsState()
 
     var showAddSheet by remember { mutableStateOf(false) }
-    var claimItem by remember { mutableStateOf<SupplyItem?>(null) }
-    var manageClaimItem by remember { mutableStateOf<SupplyItem?>(null) }
+    var detailItem by remember { mutableStateOf<SupplyItem?>(null) }
     var deleteItem by remember { mutableStateOf<SupplyItem?>(null) }
     var pendingQuickAddName by remember { mutableStateOf<String?>(null) }
+
+    // Keep detailItem in sync with live data so claims update while sheet is open
+    val liveDetailItem = detailItem?.let { current ->
+        supplyItems.find { it.id == current.id }
+    }
+    LaunchedEffect(liveDetailItem) {
+        if (liveDetailItem != null) detailItem = liveDetailItem
+    }
 
     LaunchedEffect(pendingQuickAddName, supplyItems) {
         val name = pendingQuickAddName ?: return@LaunchedEffect
         val found = supplyItems.find { it.name.equals(name, ignoreCase = true) }
         if (found != null) {
-            claimItem = found
+            detailItem = found
             pendingQuickAddName = null
         }
     }
@@ -255,9 +266,10 @@ fun SuppliesScreen(
                         if (!isCollapsed) {
                             ReorderableCategory(
                                 items = categoryItems,
+                                isAdmin = isAdmin,
                                 onReorder = { reordered -> viewModel.reorderSupplyItems(category, reordered) },
-                                onClaim = { claimItem = it },
-                                onManageClaims = { manageClaimItem = it },
+                                onClaim = { detailItem = it },
+                                onManageClaims = { detailItem = it },
                                 onDelete = { deleteItem = it }
                             )
                         }
@@ -277,36 +289,28 @@ fun SuppliesScreen(
             onSave = { name, category, quantity ->
                 viewModel.addSupplyItem(name, category, quantity)
                 showAddSheet = false
+            },
+            onSaveAndClaim = { name, category, quantity ->
+                viewModel.addSupplyItem(name, category, quantity)
+                pendingQuickAddName = name
+                showAddSheet = false
             }
         )
     }
 
-    claimItem?.let { item ->
+    detailItem?.let { item ->
         val currentMember = members.find { it.uid == viewModel.currentUid }
-        ClaimSheet(
+        ItemDetailSheet(
             item = item,
             currentMember = currentMember,
-            onDismiss = { claimItem = null },
+            members = members,
+            isAdmin = isAdmin,
+            onDismiss = { detailItem = null },
             onClaim = { member, quantity ->
                 viewModel.claimSupplyItem(item, member, quantity)
-                claimItem = null
-            }
-        )
-    }
-
-    manageClaimItem?.let { item ->
-        ManageClaimsDialog(
-            item = item,
-            members = members,
-            onDismiss = { manageClaimItem = null },
+            },
             onRemoveClaim = { uid, displayName ->
                 viewModel.unclaimSupplyItem(item, uid, displayName)
-                val updated = item.removeClaim(uid, displayName)
-                manageClaimItem = if (updated.claimedNames.isEmpty()) null else updated
-            },
-            onAddMore = {
-                manageClaimItem = null
-                claimItem = item
             }
         )
     }
@@ -393,6 +397,7 @@ private fun CategoryHeader(
 @Composable
 private fun ReorderableCategory(
     items: List<SupplyItem>,
+    isAdmin: Boolean = false,
     onReorder: (List<SupplyItem>) -> Unit,
     onClaim: (SupplyItem) -> Unit,
     onManageClaims: (SupplyItem) -> Unit,
@@ -410,6 +415,7 @@ private fun ReorderableCategory(
                 SwipeToDismissItem(
                     item = item,
                     isDragging = isDragging,
+                    isAdmin = isAdmin,
                     dragOffset = if (isDragging) dragOffset else 0f,
                     onClaim = { onClaim(item) },
                     onManageClaims = { onManageClaims(item) },
@@ -441,6 +447,7 @@ private fun ReorderableCategory(
 private fun SwipeToDismissItem(
     item: SupplyItem,
     isDragging: Boolean,
+    isAdmin: Boolean = false,
     dragOffset: Float,
     onClaim: () -> Unit,
     onManageClaims: () -> Unit,
@@ -477,7 +484,7 @@ private fun SwipeToDismissItem(
                 }
             },
             enableDismissFromStartToEnd = false,
-            enableDismissFromEndToStart = !isDragging
+            enableDismissFromEndToStart = !isDragging && isAdmin
         ) {
             SupplyItemRow(
                 item = item,
@@ -573,14 +580,18 @@ private fun SupplyItemRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ClaimSheet(
+private fun ItemDetailSheet(
     item: SupplyItem,
     currentMember: TripMember?,
+    members: List<TripMember>,
+    isAdmin: Boolean = false,
     onDismiss: () -> Unit,
-    onClaim: (TripMember, String) -> Unit
+    onClaim: (TripMember, String) -> Unit,
+    onRemoveClaim: (uid: String, displayName: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
-    var quantity by remember { mutableStateOf(item.quantity) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showClaimPicker by remember { mutableStateOf(false) }
+    var quantity by remember { mutableStateOf("") }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -590,14 +601,130 @@ private fun ClaimSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(bottom = 32.dp)
         ) {
-            // ── Header ────────────────────────────────────────────────────
-            Column(modifier = Modifier.fillMaxWidth()) {
+            if (!showClaimPicker) {
+                // ── Item detail view ─────────────────────────────────────
+                // Header
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = categoryIcon(item.category),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            item.name,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            item.category,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // ── Claims section ───────────────────────────────────────
+                if (item.isClaimed) {
+                    Text(
+                        "CLAIMED BY",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+
+                    item.claimEntries.forEach { entry ->
+                        val member = members.find { it.displayName == entry.name }
+                        val isMe = member?.uid == currentMember?.uid
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isMe)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        if (isMe) "${entry.name} (you)" else entry.name,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isMe) FontWeight.SemiBold else FontWeight.Normal
+                                    )
+                                    if (entry.quantity.isNotBlank()) {
+                                        Text(
+                                            entry.quantity,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                                if (isMe || isAdmin) {
+                                    TextButton(onClick = {
+                                        onRemoveClaim(member?.uid ?: "", entry.name)
+                                    }) {
+                                        Text("Remove", color = MaterialTheme.colorScheme.error)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+                } else {
+                    // No claims yet
+                    Text(
+                        "No one has claimed this item yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                }
+
+                // ── Claim button ─────────────────────────────────────────
+                if (currentMember == null) {
+                    Text(
+                        "You need to be a trip member to claim items.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Button(
+                        onClick = { showClaimPicker = true },
+                        shape = CircleShape,
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (item.isClaimed) "Add My Claim" else "Claim This Item",
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                }
+            } else {
+                // ── Quantity picker view ─────────────────────────────────
                 Text(
-                    "Claim Item",
+                    "Claim ${item.name}",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -607,51 +734,29 @@ private fun ClaimSheet(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
-            }
-            Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
 
-            // ── Quantity picker label ─────────────────────────────────────
-            Text(
-                "QUANTITY PICKER",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
-            )
-            Spacer(Modifier.height(12.dp))
+                QuantityField(value = quantity, onValueChange = { quantity = it })
+                Spacer(Modifier.height(24.dp))
 
-            // ── Wheel pickers ─────────────────────────────────────────────
-            QuantityField(value = quantity, onValueChange = { quantity = it })
-            Spacer(Modifier.height(24.dp))
-
-            // ── Buttons ───────────────────────────────────────────────────
-            if (currentMember == null) {
-                Text(
-                    "You need to be a trip member to claim items.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center
-                )
-                Spacer(Modifier.height(16.dp))
-                OutlinedButton(
-                    onClick = onDismiss,
-                    shape = CircleShape,
-                    modifier = Modifier.fillMaxWidth().height(52.dp)
-                ) { Text("Close") }
-            } else {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
+                        onClick = { showClaimPicker = false },
                         shape = CircleShape,
                         modifier = Modifier.weight(1f).height(52.dp)
                     ) {
-                        Text("Cancel", style = MaterialTheme.typography.labelLarge)
+                        Text("Back", style = MaterialTheme.typography.labelLarge)
                     }
                     Button(
-                        onClick = { onClaim(currentMember, quantity.trim()) },
+                        onClick = {
+                            if (currentMember != null) {
+                                onClaim(currentMember, quantity.trim())
+                                showClaimPicker = false
+                            }
+                        },
                         shape = CircleShape,
                         modifier = Modifier.weight(2f).height(52.dp)
                     ) {
@@ -663,57 +768,15 @@ private fun ClaimSheet(
     }
 }
 
-@Composable
-private fun ManageClaimsDialog(
-    item: SupplyItem,
-    members: List<TripMember>,
-    onDismiss: () -> Unit,
-    onRemoveClaim: (uid: String, displayName: String) -> Unit,
-    onAddMore: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(item.name) },
-        text = {
-            Column {
-                Text("Claimed by:", style = MaterialTheme.typography.labelMedium)
-                Spacer(Modifier.height(8.dp))
-                item.claimEntries.forEach { entry ->
-                    val member = members.find { it.displayName == entry.name }
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(entry.name, style = MaterialTheme.typography.bodyLarge)
-                            if (entry.quantity.isNotBlank()) {
-                                Text(
-                                    entry.quantity,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-                        TextButton(onClick = {
-                            onRemoveClaim(member?.uid ?: "", entry.name)
-                        }) { Text("Remove") }
-                    }
-                }
-            }
-        },
-        confirmButton = { Button(onClick = onAddMore) { Text("Add Person") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Done") } }
-    )
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AddSupplyItemSheet(
     existingNames: Set<String>,
     onDismiss: () -> Unit,
-    onSave: (name: String, category: String, quantity: String) -> Unit
+    onSave: (name: String, category: String, quantity: String) -> Unit,
+    onSaveAndClaim: (name: String, category: String, quantity: String) -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var name by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf(SUPPLY_CATEGORIES.first()) }
     var quantity by remember { mutableStateOf("") }
@@ -723,7 +786,12 @@ private fun AddSupplyItemSheet(
     val isDuplicate = trimmedName.lowercase() in existingNames
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp).padding(bottom = 32.dp)) {
+        Column(modifier = Modifier
+            .fillMaxHeight(0.85f)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 32.dp)
+        ) {
             Text("Add Supply Item", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(16.dp))
             OutlinedTextField(
@@ -759,13 +827,24 @@ private fun AddSupplyItemSheet(
             Spacer(Modifier.height(12.dp))
             QuantityField(value = quantity, onValueChange = { quantity = it })
             Spacer(Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
-                Spacer(Modifier.width(8.dp))
-                Button(
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                TextButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) { Text("Cancel") }
+                OutlinedButton(
                     onClick = { onSave(trimmedName, selectedCategory, quantity.trim()) },
-                    enabled = trimmedName.isNotEmpty() && !isDuplicate
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate,
+                    modifier = Modifier.weight(1f)
                 ) { Text("Save") }
+                Button(
+                    onClick = { onSaveAndClaim(trimmedName, selectedCategory, quantity.trim()) },
+                    enabled = trimmedName.isNotEmpty() && !isDuplicate,
+                    modifier = Modifier.weight(1.5f)
+                ) { Text("Save & Claim") }
             }
         }
         LaunchedEffect(Unit) {
@@ -785,21 +864,22 @@ private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
     val unitIndex = if (parsedUnit != null) PICKER_UNITS.indexOfFirst { it == parsedUnit }.takeIf { it >= 0 } else null
     val canUsePicker = parsedNumber != null && parsedNumber in 1..99 && (unitIndex != null || parsedUnit.isNullOrEmpty())
 
-    val initialNumberIndex = if (canUsePicker && parsedNumber != null) parsedNumber - 1 else 0
+    val initialNumber = if (canUsePicker && parsedNumber != null) parsedNumber else 1
     val initialUnitIndex = unitIndex ?: 0
 
     var useCustomText by remember { mutableStateOf(false) }
-    var numberIndex by remember { mutableIntStateOf(initialNumberIndex) }
+    var count by remember { mutableIntStateOf(initialNumber) }
     var unitIdx by remember { mutableIntStateOf(initialUnitIndex) }
     var customText by remember { mutableStateOf(if (useCustomText) value else "") }
 
+    fun emitValue() {
+        val unit = PICKER_UNITS[unitIdx]
+        onValueChange("$count $unit".trim())
+    }
+
     // Emit the picker's initial value so the parent has a non-empty quantity
     LaunchedEffect(Unit) {
-        if (value.isEmpty()) {
-            val num = PICKER_NUMBERS[initialNumberIndex]
-            val unit = PICKER_UNITS[initialUnitIndex]
-            onValueChange("$num $unit".trim())
-        }
+        if (value.isEmpty()) emitValue()
     }
 
     Column {
@@ -807,35 +887,33 @@ private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
         Spacer(Modifier.height(8.dp))
 
         if (!useCustomText) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(160.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                WheelPicker(
-                    items = PICKER_NUMBERS,
-                    selectedIndex = numberIndex,
-                    onSelectedChange = { idx ->
-                        numberIndex = idx
-                        val num = PICKER_NUMBERS[idx]
-                        val unit = PICKER_UNITS[unitIdx]
-                        onValueChange("$num $unit".trim())
-                    },
-                    modifier = Modifier.weight(0.8f)
-                )
-                WheelPicker(
-                    items = PICKER_UNITS.map { it.ifEmpty { "—" } },
-                    selectedIndex = unitIdx,
-                    onSelectedChange = { idx ->
-                        unitIdx = idx
-                        val num = PICKER_NUMBERS[numberIndex]
-                        val unit = PICKER_UNITS[idx]
-                        onValueChange("$num $unit".trim())
-                    },
-                    modifier = Modifier.weight(1.2f)
-                )
-            }
+            // ── Current value display ────────────────────────────────────
+            val unitLabel = PICKER_UNITS[unitIdx].ifEmpty { "" }
+            Text(
+                text = if (unitLabel.isNotEmpty()) "$count $unitLabel" else count.toString(),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(16.dp))
+
+            // ── Horizontal scroll ruler ──────────────────────────────────
+            HorizontalRulerPicker(
+                selectedValue = count,
+                range = 1..99,
+                onValueChange = { count = it; emitValue() }
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── Unit dropdown ─────────────────────────────────────────────
+            UnitDropdown(
+                selectedIndex = unitIdx,
+                onSelected = { unitIdx = it; emitValue() }
+            )
+
             Spacer(Modifier.height(4.dp))
             TextButton(
                 onClick = { useCustomText = true; customText = ""; onValueChange("") },
@@ -854,9 +932,9 @@ private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
             TextButton(
                 onClick = {
                     useCustomText = false
-                    numberIndex = 0
+                    count = 1
                     unitIdx = 0
-                    onValueChange(PICKER_NUMBERS[0])
+                    emitValue()
                 },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) { Text("Use picker") }
@@ -865,86 +943,169 @@ private fun QuantityField(value: String, onValueChange: (String) -> Unit) {
 }
 
 @Composable
-private fun WheelPicker(
-    items: List<String>,
-    selectedIndex: Int,
-    onSelectedChange: (Int) -> Unit,
-    modifier: Modifier = Modifier
+private fun HorizontalRulerPicker(
+    selectedValue: Int,
+    range: IntRange,
+    onValueChange: (Int) -> Unit
 ) {
-    val visibleCount = 5
-    val itemHeightDp = 36.dp
-    val totalHeight = itemHeightDp * visibleCount
-    val paddingItems = visibleCount / 2
+    val itemWidthDp = 48.dp
+    val density = LocalDensity.current
+    val itemWidthPx = with(density) { itemWidthDp.toPx() }
 
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = selectedIndex)
+    // Calculate padding items needed to center first/last real item
+    // We use a large fixed count; the spacer width is set at layout time
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = selectedValue - range.first
+    )
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
-    // Update selection when user scrolling settles (not during programmatic scroll)
+    // Track the center item continuously (during and after scroll)
+    var centerIndex by remember { mutableIntStateOf(selectedValue - range.first) }
+
     LaunchedEffect(listState) {
         snapshotFlow {
-            listState.isScrollInProgress
-        }.collect { scrolling ->
+            val layoutInfo = listState.layoutInfo
+            val viewportCenter = layoutInfo.viewportStartOffset +
+                (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
+            layoutInfo.visibleItemsInfo.minByOrNull {
+                kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
+            }?.index ?: 0
+        }.collect { idx ->
+            centerIndex = idx
+        }
+    }
+
+    // Emit value when scroll settles
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect { scrolling ->
             if (!scrolling) {
-                val layoutInfo = listState.layoutInfo
-                val viewportCenter = layoutInfo.viewportStartOffset +
-                    (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
-                val centerIdx = layoutInfo.visibleItemsInfo.minByOrNull {
-                    kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
-                }?.index?.minus(paddingItems)?.coerceIn(0, items.lastIndex)
-                if (centerIdx != null && centerIdx != selectedIndex) {
-                    onSelectedChange(centerIdx)
-                }
+                val value = (centerIndex + range.first).coerceIn(range)
+                if (value != selectedValue) onValueChange(value)
             }
         }
     }
 
-    Box(modifier = modifier.height(totalHeight)) {
-        // Selection highlight band
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(itemHeightDp)
-                .align(Alignment.Center)
-                .background(
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
-                    shape = MaterialTheme.shapes.small
-                )
-        )
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val dimColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+    val bubbleColor = MaterialTheme.colorScheme.primaryContainer
 
-        LazyColumn(
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+    ) {
+        // Half the viewport width in px, used for side padding
+        val halfViewportPx = with(density) { (maxWidth / 2).toPx() }
+        val sidePadDp = with(density) { (halfViewportPx - itemWidthPx / 2).toDp() }
+
+        LazyRow(
             state = listState,
             flingBehavior = flingBehavior,
             modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalAlignment = Alignment.CenterVertically,
+            contentPadding = PaddingValues(horizontal = sidePadDp)
         ) {
-            // Top padding items
-            items(paddingItems) {
-                Spacer(Modifier.height(itemHeightDp))
-            }
+            items(range.count()) { index ->
+                val number = range.first + index
 
-            items(items.size) { index ->
-                val isSelected = index == selectedIndex
+                // Distance from center: 0 = centered, 1+ = off-screen
+                val distFromCenter = kotlin.math.abs(index - centerIndex).toFloat()
+                val proximity = (1f - (distFromCenter / 3f)).coerceIn(0f, 1f)
+
+                // Animated scale and alpha based on proximity to center
+                val scale by animateFloatAsState(
+                    targetValue = 1f + proximity * 0.7f,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    label = "scale_$number"
+                )
+                val alpha by animateFloatAsState(
+                    targetValue = 0.3f + proximity * 0.7f,
+                    animationSpec = spring(stiffness = Spring.StiffnessMedium),
+                    label = "alpha_$number"
+                )
+                val isCenter = index == centerIndex
+
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(itemHeightDp),
+                        .width(itemWidthDp)
+                        .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Bubble background for center item
+                    if (isCenter) {
+                        Box(
+                            modifier = Modifier
+                                .size((40 * scale).dp)
+                                .graphicsLayer { scaleX = scale; scaleY = scale }
+                                .background(bubbleColor, CircleShape)
+                        )
+                    }
                     Text(
-                        text = items[index],
-                        style = if (isSelected) MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        text = number.toString(),
+                        style = if (isCenter) MaterialTheme.typography.titleLarge
                                 else MaterialTheme.typography.bodyMedium,
-                        color = if (isSelected) MaterialTheme.colorScheme.onSurface
-                                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        fontWeight = if (isCenter) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isCenter) primaryColor else dimColor,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            this.alpha = alpha
+                        }
                     )
                 }
             }
+        }
+    }
+}
 
-            // Bottom padding items
-            items(paddingItems) {
-                Spacer(Modifier.height(itemHeightDp))
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun UnitDropdown(
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit
+) {
+    // Build alphabetically sorted entries, keeping index mapping back to PICKER_UNITS
+    val sortedEntries = remember {
+        PICKER_UNITS.mapIndexed { index, unit -> index to unit.ifEmpty { "(none)" } }
+            .sortedBy { it.second.lowercase() }
+    }
+    var expanded by remember { mutableStateOf(false) }
+    val currentLabel = PICKER_UNITS[selectedIndex].ifEmpty { "(none)" }
+
+    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = it }
+        ) {
+            OutlinedTextField(
+                value = currentLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Unit") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                modifier = Modifier
+                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                    .widthIn(min = 180.dp, max = 240.dp)
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                sortedEntries.forEach { (originalIndex, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = {
+                            onSelected(originalIndex)
+                            expanded = false
+                        },
+                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
+                    )
+                }
             }
         }
     }
