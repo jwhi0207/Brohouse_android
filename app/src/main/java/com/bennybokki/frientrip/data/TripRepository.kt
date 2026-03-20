@@ -3,7 +3,6 @@ package com.bennybokki.frientrip.data
 import android.util.Log
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
@@ -147,11 +146,10 @@ class TripRepository(
     fun getSupplyItems(tripId: String): Flow<List<SupplyItem>> = callbackFlow {
         val listener = tripsCollection.document(tripId)
             .collection("supplies")
-            .orderBy("category")
-            .orderBy("sortOrder")
             .addSnapshotListener { snap, error ->
                 if (error != null) {
                     Log.e("TripRepository", "getSupplyItems listener failed", error)
+                    return@addSnapshotListener
                 }
                 val items = snap?.documents?.map { doc ->
                     SupplyItem(
@@ -163,7 +161,7 @@ class TripRepository(
                         claimedByName = doc.getString("claimedByName"),
                         sortOrder = (doc.getLong("sortOrder") ?: 0L).toInt()
                     )
-                } ?: emptyList()
+                }?.sortedWith(compareBy({ it.category }, { it.sortOrder })) ?: emptyList()
                 trySend(items)
             }
         awaitClose { listener.remove() }
@@ -173,11 +171,9 @@ class TripRepository(
         val snap = tripsCollection.document(tripId)
             .collection("supplies")
             .whereEqualTo("category", category)
-            .orderBy("sortOrder", Query.Direction.DESCENDING)
-            .limit(1)
             .get()
             .await()
-        return (snap.documents.firstOrNull()?.getLong("sortOrder") ?: -1L).toInt()
+        return snap.documents.maxOfOrNull { it.getLong("sortOrder") ?: 0L }?.toInt() ?: -1
     }
 
     suspend fun addSupplyItem(tripId: String, name: String, category: String, quantity: String) {

@@ -115,6 +115,7 @@ fun TripScaffold(
             composable("supplies") {
                 SuppliesScreen(
                     viewModel = viewModel,
+                    isAdmin = isTripAdmin,
                     onNavigateBack = { innerNav.popBackStack() }
                 )
             }
