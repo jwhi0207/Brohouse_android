@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.bennybokki.frientrip.data.CostCalculator
 import com.bennybokki.frientrip.data.Ride
 import com.bennybokki.frientrip.data.RideRequest
+import com.bennybokki.frientrip.data.SharedExpense
 import com.bennybokki.frientrip.data.SupplyItem
 import com.bennybokki.frientrip.data.TripMember
 import com.bennybokki.frientrip.data.TripRepository
@@ -45,20 +46,28 @@ class TripViewModel(
     val rideRequests = repo.getRideRequests(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val expenses = repo.getExpenses(tripId)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     /**
-     * Maps each member's uid → their computed share of the total trip cost.
-     *
-     * Algorithm: since everyone starts on night 1, a guest staying N nights is
-     * present on nights 1..N. For each night we split its cost equally among all
-     * guests who are still there (nightsStayed >= that night number).
-     *
-     *   nightly_cost = totalCost / totalNights
-     *   member share = Σ (nightly_cost / guests_present_that_night)
-     *                    for each night in 1..member.nightsStayed
-     *
-     * Members with nightsStayed == 0 owe $0 until they set their nights.
+     * Maps each member's uid → their computed share of the total trip cost
+     * including house cost + all approved shared expenses.
      */
     val memberCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
+        combine(members, trip, expenses) { memberList, tripData, expenseList ->
+            val approvedExpenses = expenseList.filter { it.approved }
+            CostCalculator.computeTotalShares(
+                memberList,
+                tripData?.totalNights ?: 0,
+                tripData?.totalCost ?: 0.0,
+                approvedExpenses
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /**
+     * House-only cost split (for payment breakdown display).
+     */
+    val houseCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
         combine(members, trip) { memberList, tripData ->
             CostCalculator.computeCostSplit(memberList, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
@@ -68,6 +77,9 @@ class TripViewModel(
 
     private val _saveComplete = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val saveComplete = _saveComplete.asSharedFlow()
+
+    private val _errorMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val errorMessage = _errorMessage.asSharedFlow()
 
     // ─── Members ──────────────────────────────────────────────────────────────
 
@@ -247,6 +259,57 @@ class TripViewModel(
 
     fun canEditRide(ride: Ride): Boolean =
         currentUid == ride.driverUid || currentUid == (trip.value?.ownerId ?: "")
+
+    // ─── Expenses ────────────────────────────────────────────────────────────
+
+    fun submitExpense(
+        description: String,
+        amount: Double,
+        splitMethod: String,
+        category: String = "misc",
+        linkedSupplyId: String? = null
+    ) = viewModelScope.launch {
+        try {
+            val member = members.value.find { it.uid == currentUid }
+            if (member == null) {
+                _errorMessage.tryEmit("Could not find your member profile")
+                return@launch
+            }
+            val expense = SharedExpense(
+                description = description,
+                amount = amount,
+                category = category,
+                splitMethod = splitMethod,
+                submittedByUid = currentUid,
+                submittedByName = member.displayName,
+                approved = false,
+                linkedSupplyId = linkedSupplyId,
+                createdAt = System.currentTimeMillis()
+            )
+            repo.addExpense(tripId, expense)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "submitExpense failed", e)
+            _errorMessage.tryEmit("Failed to submit expense: ${e.message}")
+        }
+    }
+
+    fun approveExpense(expenseId: String) = viewModelScope.launch {
+        try {
+            repo.approveExpense(tripId, expenseId)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "approveExpense failed", e)
+            _errorMessage.tryEmit("Failed to approve expense: ${e.message}")
+        }
+    }
+
+    fun deleteExpense(expenseId: String) = viewModelScope.launch {
+        try {
+            repo.deleteExpense(tripId, expenseId)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "deleteExpense failed", e)
+            _errorMessage.tryEmit("Failed to delete expense: ${e.message}")
+        }
+    }
 
     // ─── Invites ──────────────────────────────────────────────────────────────
 

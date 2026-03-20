@@ -100,6 +100,7 @@ fun TripScaffold(
                     onNavigateToSupplies = { navigateToTab("supplies") },
                     onNavigateToCarpool = { navigateToTab("carpool") },
                     onNavigateToInvite = { navigateToTab("group") },
+                    onNavigateToExpenses = { innerNav.navigate("expenses") },
                     onNavigateBack = onNavigateBack,
                     onNavigateToProfile = onNavigateToProfile
                 )
@@ -125,6 +126,13 @@ fun TripScaffold(
             }
             composable("group") {
                 InviteScreen(
+                    viewModel = viewModel,
+                    isAdmin = isTripAdmin,
+                    onNavigateBack = { innerNav.popBackStack() }
+                )
+            }
+            composable("expenses") {
+                ExpensesScreen(
                     viewModel = viewModel,
                     isAdmin = isTripAdmin,
                     onNavigateBack = { innerNav.popBackStack() }

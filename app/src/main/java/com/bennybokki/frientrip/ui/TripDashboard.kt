@@ -53,6 +53,7 @@ fun TripDashboard(
     onNavigateToSupplies: () -> Unit,
     onNavigateToCarpool: () -> Unit,
     onNavigateToInvite: () -> Unit,
+    onNavigateToExpenses: () -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit = {}
 ) {
@@ -62,6 +63,7 @@ fun TripDashboard(
     val rides by viewModel.rides.collectAsState()
     val rideRequests by viewModel.rideRequests.collectAsState()
     val memberCosts by viewModel.memberCosts.collectAsState()
+    val expensesList by viewModel.expenses.collectAsState()
     val currentUid = viewModel.currentUid
 
     val currentMember = members.find { it.uid == currentUid }
@@ -162,17 +164,22 @@ fun TripDashboard(
                 )
             }
 
-            // ── Feature cards (2-column) ──────────────────────────────────────
+            // ── Feature cards (3-column) ──────────────────────────────────────
             item {
                 val unclaimed = supplyItems.count { !it.isClaimed }
+                val availRides = rides.sumOf { it.availableSeats }
+                val pendingExpenseCount = expensesList.count { !it.approved }
+                val approvedTotal = expensesList.filter { it.approved }.sumOf { it.amount }
+                val currency = NumberFormat.getCurrencyInstance(Locale.US)
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     FeatureCard(
-                        icon = Icons.Default.ShoppingCart,
+                        icon = Icons.Default.ShoppingBag,
                         badge = if (unclaimed > 0) "$unclaimed New" else null,
                         title = "Supplies",
                         subtitle = if (supplyItems.isEmpty()) "No items yet"
@@ -182,10 +189,19 @@ fun TripDashboard(
                     )
                     FeatureCard(
                         icon = Icons.Default.DirectionsCar,
-                        badge = null,
+                        badge = if (availRides > 0) "$availRides Avail" else null,
                         title = "Carpool",
-                        subtitle = "Tap to view rides",
+                        subtitle = if (rides.isEmpty()) "No rides yet" else "Rides active",
                         onClick = onNavigateToCarpool,
+                        modifier = Modifier.weight(1f)
+                    )
+                    FeatureCard(
+                        icon = Icons.Default.AccountBalanceWallet,
+                        badge = if (isAdmin && pendingExpenseCount > 0) "$pendingExpenseCount Pending" else null,
+                        title = "Expenses",
+                        subtitle = if (approvedTotal > 0) "${currency.format(approvedTotal)} total"
+                                   else "\$0 total",
+                        onClick = onNavigateToExpenses,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -273,10 +289,15 @@ fun TripDashboard(
     }
 
     addPaymentMember?.let { member ->
+        val houseCosts by viewModel.houseCosts.collectAsState()
         val computedOwed = memberCosts[member.uid] ?: 0.0
+        val houseShare = houseCosts[member.uid] ?: 0.0
+        val expensesShare = computedOwed - houseShare
         AddPaymentSheet(
             computedOwed = computedOwed,
             amountPaid = member.amountPaid,
+            houseShare = houseShare,
+            expensesShare = expensesShare,
             onDismiss = { addPaymentMember = null },
             onSave = { amount ->
                 viewModel.addPayment(member, amount)

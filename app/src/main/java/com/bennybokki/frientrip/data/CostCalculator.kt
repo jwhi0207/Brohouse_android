@@ -32,4 +32,44 @@ object CostCalculator {
             member.uid to share
         }
     }
+
+    /**
+     * Computes total shares across house cost + approved shared expenses.
+     *
+     * House cost uses the existing per-night algorithm.
+     * Each expense is split either evenly or by nights stayed.
+     */
+    fun computeTotalShares(
+        members: List<TripMember>,
+        totalNights: Int,
+        houseCost: Double,
+        approvedExpenses: List<SharedExpense>
+    ): Map<String, Double> {
+        if (members.isEmpty()) return emptyMap()
+
+        val houseShares = computeCostSplit(members, totalNights, houseCost)
+        val expenseShares = mutableMapOf<String, Double>()
+        members.forEach { expenseShares[it.uid] = 0.0 }
+
+        for (expense in approvedExpenses) {
+            when (expense.splitMethod) {
+                "even" -> {
+                    val perMember = expense.amount / members.size
+                    members.forEach { m ->
+                        expenseShares[m.uid] = (expenseShares[m.uid] ?: 0.0) + perMember
+                    }
+                }
+                "byNights" -> {
+                    val nightShares = computeCostSplit(members, totalNights, expense.amount)
+                    nightShares.forEach { (uid, share) ->
+                        expenseShares[uid] = (expenseShares[uid] ?: 0.0) + share
+                    }
+                }
+            }
+        }
+
+        return members.associate { m ->
+            m.uid to (houseShares[m.uid] ?: 0.0) + (expenseShares[m.uid] ?: 0.0)
+        }
+    }
 }
