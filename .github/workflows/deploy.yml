@@ -24,7 +24,7 @@ jobs:
         run: echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > app/release.jks
 
       - name: Create google-services.json
-        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
 
       - name: Create keystore.properties
         run: |
