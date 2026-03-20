@@ -42,8 +42,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
 import com.bennybokki.frientrip.TripViewModel
+import com.bennybokki.frientrip.data.SharedExpense
 import com.bennybokki.frientrip.data.SupplyItem
 import com.bennybokki.frientrip.data.TripMember
 import kotlinx.coroutines.delay
@@ -96,10 +98,12 @@ fun SuppliesScreen(
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
     val members by viewModel.members.collectAsState()
+    val expenses by viewModel.expenses.collectAsState()
 
     var showAddSheet by remember { mutableStateOf(false) }
     var detailItem by remember { mutableStateOf<SupplyItem?>(null) }
     var deleteItem by remember { mutableStateOf<SupplyItem?>(null) }
+    var billToGroupItem by remember { mutableStateOf<SupplyItem?>(null) }
     var pendingQuickAddName by remember { mutableStateOf<String?>(null) }
 
     // Keep detailItem in sync with live data so claims update while sheet is open
@@ -300,17 +304,36 @@ fun SuppliesScreen(
 
     detailItem?.let { item ->
         val currentMember = members.find { it.uid == viewModel.currentUid }
+        val linkedExpense = expenses.find { it.linkedSupplyId == item.id }
         ItemDetailSheet(
             item = item,
             currentMember = currentMember,
             members = members,
             isAdmin = isAdmin,
+            linkedExpense = linkedExpense,
             onDismiss = { detailItem = null },
             onClaim = { member, quantity ->
                 viewModel.claimSupplyItem(item, member, quantity)
             },
             onRemoveClaim = { uid, displayName ->
                 viewModel.unclaimSupplyItem(item, uid, displayName)
+            },
+            onBillToGroup = {
+                detailItem = null
+                billToGroupItem = item
+            }
+        )
+    }
+
+    billToGroupItem?.let { item ->
+        AddExpenseSheet(
+            initialDescription = item.name,
+            initialCategory = "supply",
+            initialLinkedSupplyId = item.id,
+            onDismiss = { billToGroupItem = null },
+            onSubmitFull = { description, amount, splitMethod, category, linkedSupplyId ->
+                viewModel.submitExpense(description, amount, splitMethod, category, linkedSupplyId)
+                billToGroupItem = null
             }
         )
     }
@@ -585,9 +608,11 @@ private fun ItemDetailSheet(
     currentMember: TripMember?,
     members: List<TripMember>,
     isAdmin: Boolean = false,
+    linkedExpense: SharedExpense? = null,
     onDismiss: () -> Unit,
     onClaim: (TripMember, String) -> Unit,
-    onRemoveClaim: (uid: String, displayName: String) -> Unit
+    onRemoveClaim: (uid: String, displayName: String) -> Unit,
+    onBillToGroup: () -> Unit = {}
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showClaimPicker by remember { mutableStateOf(false) }
@@ -696,6 +721,54 @@ private fun ItemDetailSheet(
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
                     Spacer(Modifier.height(20.dp))
+                }
+
+                // ── Bill to Group section ─────────────────────────────────
+                if (item.isClaimed) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                    Spacer(Modifier.height(12.dp))
+                    if (linkedExpense != null) {
+                        val currency = java.text.NumberFormat.getCurrencyInstance(java.util.Locale.US)
+                        val statusText = if (linkedExpense.approved) "Approved" else "Pending"
+                        val statusColor = if (linkedExpense.approved) Color(0xFF2E7D32) else Color(0xFFE65100)
+                        val bgColor = if (linkedExpense.approved) Color(0xFFE8F5E9) else Color(0xFFFFF3E0)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("Billed to Group", style = MaterialTheme.typography.labelMedium)
+                                Text(
+                                    currency.format(linkedExpense.amount),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = bgColor
+                            ) {
+                                Text(
+                                    statusText.uppercase(),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = statusColor,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = onBillToGroup,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Receipt, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Bill to Group")
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
                 }
 
                 // ── Claim button ─────────────────────────────────────────

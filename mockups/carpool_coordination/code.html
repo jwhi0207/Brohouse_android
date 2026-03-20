@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<title>Carpool - BroHouse</title>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-20 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center gap-4">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors">
+<span class="material-symbols-outlined align-middle">arrow_back</span>
+</button>
+<h1 class="text-xl font-bold tracking-tight">Carpool</h1>
+<div class="ml-auto">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors">
+<span class="material-symbols-outlined align-middle">search</span>
+</button>
+</div>
+</header>
+<main class="pb-32">
+<!-- Vehicles Section -->
+<section class="px-4 pt-6">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold">Vehicles</h2>
+<span class="text-xs font-semibold px-2 py-1 bg-primary/10 text-primary rounded-full">3 Active Rides</span>
+</div>
+<!-- Vehicle Card 1 -->
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden mb-6">
+<div class="p-4">
+<div class="flex gap-4 items-start mb-4">
+<div class="size-16 bg-primary/10 rounded-xl flex items-center justify-center text-3xl shrink-0">
+                            🚐
+                        </div>
+<div class="flex-1">
+<h3 class="font-bold text-lg">Jack - White Transit Van</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">High roof, plenty of gear space</p>
+</div>
+</div>
+<div class="space-y-3 mb-6">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1">departure_board</span>
+<div>
+<p class="text-xs font-bold uppercase tracking-wider text-slate-400">Departure</p>
+<p class="text-sm font-medium">Downtown Terminal • Oct 12, 8:00 AM</p>
+</div>
+</div>
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary text-sm mt-1">keyboard_return</span>
+<div>
+<p class="text-xs font-bold uppercase tracking-wider text-slate-400">Return</p>
+<p class="text-sm font-medium">Basecamp Alpha • Oct 15, 4:00 PM</p>
+</div>
+</div>
+</div>
+<div class="mb-6">
+<div class="flex justify-between items-end mb-2">
+<span class="text-sm font-bold">Seat Availability</span>
+<span class="text-sm font-medium text-primary">5 / 8 Occupied</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 62.5%;"></div>
+</div>
+<p class="text-xs text-slate-500 mt-2">3 seats remaining</p>
+</div>
+<div class="mb-6">
+<p class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Passengers</p>
+<div class="flex -space-x-2">
+<img alt="Avatar" class="size-8 rounded-full border-2 border-white dark:border-slate-900 object-cover" data-alt="Male passenger portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDikN0zHRqx8p2Vc2ck0PsxNjyEpncZQQIEuQsX57wteCvjMfTCIKvvPcdz_-yxCCuVuI-ti-YHBH_tkzqa9rv9UidSho2XcVOg3Nz700guQ7aUsn3b6pSwOXGXSLP5kU0IDwzIeHBIEd8nSaCrJYZpQRQNSKAHrYnbjbDcb-7B3hLKjkiOmIKYxNd2EHmPwlVn2ePQgSoge29EcWH-eGytamTIqOvCb9nxIN9t-HzT7SCKN11p-5mp3F-t-wLCpwt4VQiy4aVxehXC"/>
+<img alt="Avatar" class="size-8 rounded-full border-2 border-white dark:border-slate-900 object-cover" data-alt="Female passenger portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuASsGm25vkIaVogPkNECkrFuMyMXjzSukIh1dFkgsKmKrfE-0wBUzm-QIGi6p--_4ZuDOHURXRFMeAhKu_tuaO7KnE-2cE13m3TY0H9VqXZPVKeWTxm3nSBCffIpV_kzhRiMEfX-tO2W1cQakSTKIemzRhwYBPKsC2Rh65iDfEw89N-9xMiLi7Ttij4fGDkBDkT1BPnWtSB7mbRHCf8nicspyXUUgAqUOuUdzt8UH9uu5czTq1zlF4YjV21pMXdwjVcLf50pv-SQbW8"/>
+<img alt="Avatar" class="size-8 rounded-full border-2 border-white dark:border-slate-900 object-cover" data-alt="Male passenger portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2rRyNjXa5qNTkVQzDLXmku5akqadtrJOpph9YWqPxMiAXyf7cbUrOjDTPx_MTS4YFDgQTiGa2xgf3J_gsPlxNLFy3rOrEJGwrgFFSRM8e2oVsbBnyfqe43wD_6Ra6K8o76U47CX7dfDa8sn1Wcz0b4a3GES7m_Ii3tRRxTG8JS0bjD5LKOCaej8D-X6y22kCsScBXnraNIzORIhtdUFRCtJYNLi8A6E6dEoqQ_EKDkaUsMF6pkdLP-9GcVcHFFInwy0mL0fyv8kPV"/>
+<div class="size-8 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-bold">+2</div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 bg-primary text-white py-2.5 rounded-lg font-bold text-sm shadow-md shadow-primary/20 hover:opacity-90 transition-opacity">Claim Seat</button>
+<button class="px-3 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined align-middle text-slate-600 dark:text-slate-400">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Vehicle Card 2 -->
+<div class="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="p-4">
+<div class="flex gap-4 items-start mb-4">
+<div class="size-16 bg-primary/10 rounded-xl flex items-center justify-center text-3xl shrink-0">
+                            🚗
+                        </div>
+<div class="flex-1">
+<h3 class="font-bold text-lg">Sarah - SUV AWD</h3>
+<p class="text-sm text-slate-500 dark:text-slate-400">Roof rack for boards/skis</p>
+</div>
+</div>
+<div class="mb-4">
+<div class="flex justify-between items-end mb-2">
+<span class="text-sm font-bold">Seat Availability</span>
+<span class="text-sm font-medium text-green-500 font-bold">FULL</span>
+</div>
+<div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+<div class="bg-green-500 h-full rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+<button class="w-full border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 py-2.5 rounded-lg font-bold text-sm bg-slate-50 dark:bg-slate-800/50">Leave Ride</button>
+</div>
+</div>
+</section>
+<!-- Need a Ride Section -->
+<section class="px-4 mt-8">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-lg font-bold">Need a Ride</h2>
+<button class="text-primary text-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">add_circle</span>
+                    I Need a Ride
+                </button>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3">
+<img alt="User" class="size-10 rounded-full object-cover" data-alt="User needing a ride" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIw1nz5r7ny7yz3FOg5axGFvZMwy0SrtTdNJ8g9hGQtb2G1z7GYXJMhRQci-6_cLMGjCHbAWmiXrcqpDIESFciUZeSFCrhi7lyeuZNZr1vbCcSBi2DVakTYAqZFVK0b6h36UxUiJFsmpXHVgpCJtkCg4iuYd9wKoCSKi5WgfYCnYL5Vo59Sb0DUEUzq2kiAUbnMYixL3ZAlzvs4Zt8xyvPKo9d9qaqm3mcXZNrq2oIoaBDaRIxZKPftVaDyNBbnhFI2d26xAnWK-qQ"/>
+<div>
+<p class="font-bold text-sm">Marcus Thompson</p>
+<p class="text-xs text-slate-500">From: West Side</p>
+</div>
+</div>
+<button class="px-4 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-bold">Offer Lift</button>
+</div>
+<div class="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3">
+<img alt="User" class="size-10 rounded-full object-cover" data-alt="User needing a ride" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCqlpfCd2fjeuKTND8gRWldivgfSj9JBGZEGVe8TgMkB3Odb1IA-cMIxeY9W_QkuzOqQehJ1C2ITZjmoYPGrGXjQw03_mWEY4mVsh6IzD4qYYB8dgukxEpq1o-eyqbIZDZaB_6lhs2BYxlHYCMrrqfG0o5PByLllyhZs3UbQcOgYJU44ELQz2fpPktDQgI0pZWwht2bgV19Evm1NtdIrWP61tmTgi87StP1B-xXagBg2cXlYRttNYV6aDAc7wH1mkWuq2bGzZBWAWBA"/>
+<div>
+<p class="font-bold text-sm">Elena Rodriguez</p>
+<p class="text-xs text-slate-500">From: Airport Suburb</p>
+</div>
+</div>
+<button class="px-4 py-1.5 bg-primary/10 text-primary rounded-lg text-xs font-bold">Offer Lift</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-24 right-6 size-14 bg-primary text-white rounded-full shadow-lg shadow-primary/40 flex items-center justify-center z-30 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-2xl">add</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 w-full bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 px-2 pb-6 pt-2 z-40">
+<div class="max-w-md mx-auto flex justify-around items-center">
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">map</span>
+<span class="text-[10px] font-bold">Trip</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">bed</span>
+<span class="text-[10px] font-bold">Lodging</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="text-[10px] font-bold">Supplies</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-1">directions_car</span>
+<span class="text-[10px] font-bold">Carpool</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="text-[10px] font-bold">Group</span>
+</a>
+</div>
+</nav>
+</body></html>

@@ -53,6 +53,7 @@ fun TripDashboard(
     onNavigateToSupplies: () -> Unit,
     onNavigateToCarpool: () -> Unit,
     onNavigateToInvite: () -> Unit,
+    onNavigateToExpenses: () -> Unit = {},
     onNavigateBack: () -> Unit,
     onNavigateToProfile: () -> Unit = {}
 ) {
@@ -62,6 +63,7 @@ fun TripDashboard(
     val rides by viewModel.rides.collectAsState()
     val rideRequests by viewModel.rideRequests.collectAsState()
     val memberCosts by viewModel.memberCosts.collectAsState()
+    val expensesList by viewModel.expenses.collectAsState()
     val currentUid = viewModel.currentUid
 
     val currentMember = members.find { it.uid == currentUid }
@@ -162,32 +164,111 @@ fun TripDashboard(
                 )
             }
 
-            // ── Feature cards (2-column) ──────────────────────────────────────
+            // ── Feature cards (2-column + full-width expenses) ────────────────
             item {
                 val unclaimed = supplyItems.count { !it.isClaimed }
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                val availRides = rides.sumOf { it.availableSeats }
+                val pendingExpenseCount = expensesList.count { !it.approved }
+                val approvedTotal = expensesList.filter { it.approved }.sumOf { it.amount }
+                val currency = NumberFormat.getCurrencyInstance(Locale.US)
+
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    FeatureCard(
-                        icon = Icons.Default.ShoppingCart,
-                        badge = if (unclaimed > 0) "$unclaimed New" else null,
-                        title = "Supplies",
-                        subtitle = if (supplyItems.isEmpty()) "No items yet"
-                                   else "${supplyItems.size} items total",
-                        onClick = onNavigateToSupplies,
-                        modifier = Modifier.weight(1f)
-                    )
-                    FeatureCard(
-                        icon = Icons.Default.DirectionsCar,
-                        badge = null,
-                        title = "Carpool",
-                        subtitle = "Tap to view rides",
-                        onClick = onNavigateToCarpool,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        FeatureCard(
+                            icon = Icons.Default.ShoppingBag,
+                            badge = if (unclaimed > 0) "$unclaimed New" else null,
+                            title = "Supplies",
+                            subtitle = if (supplyItems.isEmpty()) "No items yet"
+                                       else "${supplyItems.size} items total",
+                            onClick = onNavigateToSupplies,
+                            modifier = Modifier.weight(1f)
+                        )
+                        val needRideCount = rideRequests.size
+                        FeatureCard(
+                            icon = Icons.Default.DirectionsCar,
+                            badge = if (needRideCount > 0) "$needRideCount Need Ride"
+                                    else if (availRides > 0) "$availRides Avail"
+                                    else null,
+                            title = "Carpool",
+                            subtitle = if (rides.isEmpty()) "No rides yet" else "Rides active",
+                            onClick = onNavigateToCarpool,
+                            modifier = Modifier.weight(1f),
+                            badgeColor = if (needRideCount > 0) Color(0xFFFFF3E0) else null,
+                            badgeTextColor = if (needRideCount > 0) Color(0xFFE65100) else null
+                        )
+                    }
+                    Card(
+                        onClick = onNavigateToExpenses,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(MaterialTheme.colorScheme.primaryContainer),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.AccountBalanceWallet,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    "Expenses",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                if (isAdmin && pendingExpenseCount > 0) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFFFF3E0),
+                                        modifier = Modifier.padding(top = 4.dp)
+                                    ) {
+                                        Text(
+                                            "$pendingExpenseCount Pending",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFE65100),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        if (expensesList.isEmpty()) "No expenses yet" else "${expensesList.size} expenses",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                            Text(
+                                currency.format(approvedTotal),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
@@ -273,10 +354,15 @@ fun TripDashboard(
     }
 
     addPaymentMember?.let { member ->
+        val houseCosts by viewModel.houseCosts.collectAsState()
         val computedOwed = memberCosts[member.uid] ?: 0.0
+        val houseShare = houseCosts[member.uid] ?: 0.0
+        val expensesShare = computedOwed - houseShare
         AddPaymentSheet(
             computedOwed = computedOwed,
             amountPaid = member.amountPaid,
+            houseShare = houseShare,
+            expensesShare = expensesShare,
             onDismiss = { addPaymentMember = null },
             onSave = { amount ->
                 viewModel.addPayment(member, amount)
@@ -552,7 +638,9 @@ private fun FeatureCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    badgeColor: Color? = null,
+    badgeTextColor: Color? = null
 ) {
     Card(
         onClick = onClick,
@@ -586,13 +674,13 @@ private fun FeatureCard(
                 if (badge != null) {
                     Surface(
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer
+                        color = badgeColor ?: MaterialTheme.colorScheme.primaryContainer
                     ) {
                         Text(
                             badge,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = badgeTextColor ?: MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
