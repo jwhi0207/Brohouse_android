@@ -67,11 +67,17 @@ fun TripScaffold(
         }
     }
 
+    // Nested routes that aren't tabs — map them to their parent tab for highlighting
+    val effectiveRoute = when (currentRoute) {
+        "expenses" -> "dashboard"
+        else -> currentRoute
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar {
                 tripTabs.forEach { tab ->
-                    val selected = currentRoute == tab.route
+                    val selected = effectiveRoute == tab.route
                     NavigationBarItem(
                         selected = selected,
                         onClick = { navigateToTab(tab.route) },
