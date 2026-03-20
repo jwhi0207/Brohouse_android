@@ -90,6 +90,8 @@ fun EditNightsSheet(
 fun AddPaymentSheet(
     computedOwed: Double,
     amountPaid: Double,
+    houseShare: Double = 0.0,
+    expensesShare: Double = 0.0,
     onDismiss: () -> Unit,
     onSave: (Double) -> Unit
 ) {
@@ -112,12 +114,17 @@ fun AddPaymentSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    if (houseShare > 0.0 || expensesShare > 0.0) {
+                        PaymentSummaryRow("House share", currency.format(houseShare))
+                        PaymentSummaryRow("Expenses share", currency.format(expensesShare))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
+                    }
                     PaymentSummaryRow("Total owed", currency.format(computedOwed))
                     PaymentSummaryRow("Already paid", currency.format(amountPaid))
                     HorizontalDivider(modifier = Modifier.padding(vertical = 6.dp))
                     PaymentSummaryRow(
                         label = "Remaining",
-                        value = if (remaining <= 0.0) "Paid up ✓" else currency.format(remaining),
+                        value = if (remaining <= 0.0) "Paid up \u2713" else currency.format(remaining),
                         valueColor = if (remaining <= 0.0) Color(0xFF4CAF50)
                                      else MaterialTheme.colorScheme.onSurface
                     )

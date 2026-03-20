@@ -67,11 +67,17 @@ fun TripScaffold(
         }
     }
 
+    // Nested routes that aren't tabs — map them to their parent tab for highlighting
+    val effectiveRoute = when (currentRoute) {
+        "expenses" -> "dashboard"
+        else -> currentRoute
+    }
+
     Scaffold(
         bottomBar = {
             NavigationBar {
                 tripTabs.forEach { tab ->
-                    val selected = currentRoute == tab.route
+                    val selected = effectiveRoute == tab.route
                     NavigationBarItem(
                         selected = selected,
                         onClick = { navigateToTab(tab.route) },
@@ -100,6 +106,7 @@ fun TripScaffold(
                     onNavigateToSupplies = { navigateToTab("supplies") },
                     onNavigateToCarpool = { navigateToTab("carpool") },
                     onNavigateToInvite = { navigateToTab("group") },
+                    onNavigateToExpenses = { innerNav.navigate("expenses") },
                     onNavigateBack = onNavigateBack,
                     onNavigateToProfile = onNavigateToProfile
                 )
@@ -126,6 +133,13 @@ fun TripScaffold(
             }
             composable("group") {
                 InviteScreen(
+                    viewModel = viewModel,
+                    isAdmin = isTripAdmin,
+                    onNavigateBack = { innerNav.popBackStack() }
+                )
+            }
+            composable("expenses") {
+                ExpensesScreen(
                     viewModel = viewModel,
                     isAdmin = isTripAdmin,
                     onNavigateBack = { innerNav.popBackStack() }

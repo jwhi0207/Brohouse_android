@@ -467,4 +467,56 @@ class TripRepository(
     suspend fun removeRideRequest(tripId: String, uid: String) {
         tripsCollection.document(tripId).collection("rideRequests").document(uid).delete().await()
     }
+
+    // ─── Expenses ──────────────────────────────────────────────────────────────
+
+    fun getExpenses(tripId: String): Flow<List<SharedExpense>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("expenses")
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getExpenses listener failed", error)
+                }
+                val expenses = snap?.documents?.map { doc ->
+                    SharedExpense(
+                        id = doc.id,
+                        description = doc.getString("description") ?: "",
+                        amount = doc.getDouble("amount") ?: 0.0,
+                        category = doc.getString("category") ?: "misc",
+                        splitMethod = doc.getString("splitMethod") ?: "even",
+                        submittedByUid = doc.getString("submittedByUid") ?: "",
+                        submittedByName = doc.getString("submittedByName") ?: "",
+                        approved = doc.getBoolean("approved") ?: false,
+                        linkedSupplyId = doc.getString("linkedSupplyId"),
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }?.sortedByDescending { it.createdAt } ?: emptyList()
+                trySend(expenses)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun addExpense(tripId: String, expense: SharedExpense) {
+        val data = mapOf(
+            "description" to expense.description,
+            "amount" to expense.amount,
+            "category" to expense.category,
+            "splitMethod" to expense.splitMethod,
+            "submittedByUid" to expense.submittedByUid,
+            "submittedByName" to expense.submittedByName,
+            "approved" to expense.approved,
+            "linkedSupplyId" to expense.linkedSupplyId,
+            "createdAt" to expense.createdAt
+        )
+        tripsCollection.document(tripId).collection("expenses").add(data).await()
+    }
+
+    suspend fun approveExpense(tripId: String, expenseId: String) {
+        tripsCollection.document(tripId).collection("expenses").document(expenseId)
+            .update("approved", true).await()
+    }
+
+    suspend fun deleteExpense(tripId: String, expenseId: String) {
+        tripsCollection.document(tripId).collection("expenses").document(expenseId).delete().await()
+    }
 }

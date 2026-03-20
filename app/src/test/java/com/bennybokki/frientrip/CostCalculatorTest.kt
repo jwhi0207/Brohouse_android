@@ -1,8 +1,10 @@
 package com.bennybokki.frientrip
 
 import com.bennybokki.frientrip.data.CostCalculator
+import com.bennybokki.frientrip.data.SharedExpense
 import com.bennybokki.frientrip.data.TripMember
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CostCalculatorTest {
@@ -108,5 +110,105 @@ class CostCalculatorTest {
         val result = CostCalculator.computeCostSplit(members, totalNights = 5, totalCost = totalCost)
         val sum = result.values.sum()
         assertEquals(totalCost, sum, 0.001)
+    }
+
+    // ─── computeTotalShares ────────────────────────────────────────────────────
+
+    private fun expense(
+        amount: Double,
+        splitMethod: String = "even",
+        approved: Boolean = true
+    ) = SharedExpense(
+        id = "e${amount.toInt()}",
+        description = "Test expense",
+        amount = amount,
+        splitMethod = splitMethod,
+        submittedByUid = "a",
+        submittedByName = "a",
+        approved = approved,
+        createdAt = System.currentTimeMillis()
+    )
+
+    @Test
+    fun `totalShares with no expenses equals house-only split`() {
+        val members = listOf(member("a", 3), member("b", 3))
+        val houseOnly = CostCalculator.computeCostSplit(members, 3, 300.0)
+        val total = CostCalculator.computeTotalShares(members, 3, 300.0, emptyList())
+        assertEquals(houseOnly["a"]!!, total["a"]!!, 0.001)
+        assertEquals(houseOnly["b"]!!, total["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `even split expense divides equally among members`() {
+        val members = listOf(member("a", 3), member("b", 3))
+        val expenses = listOf(expense(100.0, "even"))
+        val result = CostCalculator.computeTotalShares(members, 3, 0.0, expenses)
+        // $100 / 2 members = $50 each
+        assertEquals(50.0, result["a"]!!, 0.001)
+        assertEquals(50.0, result["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `byNights split expense uses night-based algorithm`() {
+        val members = listOf(member("a", 3), member("b", 1))
+        val expenses = listOf(expense(300.0, "byNights"))
+        val result = CostCalculator.computeTotalShares(members, 3, 0.0, expenses)
+        // Same as computeCostSplit: a=250, b=50
+        assertEquals(250.0, result["a"]!!, 0.001)
+        assertEquals(50.0, result["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `house cost plus even expense combines correctly`() {
+        val members = listOf(member("a", 3), member("b", 3))
+        val expenses = listOf(expense(60.0, "even"))
+        val result = CostCalculator.computeTotalShares(members, 3, 300.0, expenses)
+        // House: 150 each. Expense: 30 each. Total: 180 each.
+        assertEquals(180.0, result["a"]!!, 0.001)
+        assertEquals(180.0, result["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `multiple expenses accumulate`() {
+        val members = listOf(member("a", 2), member("b", 2))
+        val expenses = listOf(
+            expense(100.0, "even"),
+            expense(40.0, "even"),
+            expense(60.0, "even")
+        )
+        val result = CostCalculator.computeTotalShares(members, 2, 0.0, expenses)
+        // (100 + 40 + 60) / 2 = 100 each
+        assertEquals(100.0, result["a"]!!, 0.001)
+        assertEquals(100.0, result["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `totalShares sums to house cost plus all expense amounts`() {
+        val members = listOf(member("a", 5), member("b", 3), member("c", 2))
+        val houseCost = 500.0
+        val expenses = listOf(
+            expense(120.0, "even"),
+            expense(80.0, "byNights")
+        )
+        val result = CostCalculator.computeTotalShares(members, 5, houseCost, expenses)
+        val sum = result.values.sum()
+        assertEquals(houseCost + 120.0 + 80.0, sum, 0.001)
+    }
+
+    @Test
+    fun `empty members returns empty map for totalShares`() {
+        val result = CostCalculator.computeTotalShares(emptyList(), 3, 300.0, listOf(expense(100.0)))
+        assertTrue(result.isEmpty())
+    }
+
+    @Test
+    fun `member with zero nights gets even expense share but no house or byNights share`() {
+        val members = listOf(member("a", 3), member("b", 0))
+        val expenses = listOf(expense(100.0, "even"))
+        val result = CostCalculator.computeTotalShares(members, 3, 300.0, expenses)
+        // b: house=0 (0 nights), even expense=50. Total=50
+        assertEquals(50.0, result["b"]!!, 0.001)
+        // a: house=300 (only one staying), even expense=50. Total=350
+        assertEquals(350.0, result["a"]!!, 0.001)
     }
 }

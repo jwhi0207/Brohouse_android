@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0061A4",
+                        "background-light": "#f8f9ff",
+                        "background-dark": "#1a1c1e",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display">
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-primary/10 px-4 py-3">
+<div class="flex items-center justify-between gap-4">
+<div class="flex items-center gap-3">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors" style="">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300" style="">arrow_back</span>
+</button>
+<div>
+<h1 class="text-lg font-bold leading-tight tracking-tight" style="">Summer in Santorini</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400" style="">Aug 12 - Aug 18 • 8 Guests</p>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors" style="">
+<span class="material-symbols-outlined text-primary" style="">person_add</span>
+</button>
+<button class="p-2 hover:bg-primary/10 rounded-full transition-colors" style="">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300" style="">more_vert</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<div class="p-4 @container">
+<div class="relative overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800 shadow-lg group">
+<div class="aspect-[16/9] w-full bg-cover bg-center" data-alt="Luxurious white villa overlooking the blue Aegean sea" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBqgfsZmjbakiGH9Kg1xeOSL6dhYZ2HbwMO4h5eCwgTakc58Cl05dlx-Gws5aEoxtsGHGvZu0LzobuZZHG3Kbis9tQocjxaL7gyFTz5I_JOYf_B7Nwq4iXlRCfCIZEhwsxmLcIcY0JSI1N_MSJC6l0-WD0p9gcy4HVRWk4SuJ5f85uatk2Eweutm9niUKs6hwBmXFGyh7d--Xu4zI1WqBy6ZZWKHP0ECc-G_0DGjkeVg9Xwdtk2sbDKLMgaQfDrP0mbCio4gWKp7uZ0");'>
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+</div>
+<div class="absolute bottom-0 left-0 right-0 p-4 text-white">
+<div class="flex justify-between items-end">
+<div>
+<h2 class="text-xl font-bold" style="">Vacation Villa</h2>
+<p class="text-sm opacity-90" style="">Oia, Santorini, Greece</p>
+</div>
+<div class="text-right">
+<p class="text-2xl font-bold text-primary" style="">$1,200</p>
+<p class="text-xs opacity-75" style="">Total Stay</p>
+</div>
+</div>
+<div class="mt-3 flex gap-2">
+<span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-medium flex items-center gap-1" style="">
+<span class="material-symbols-outlined text-[14px]" style="">bedtime</span> 6 Nights
+                        </span>
+<span class="px-2 py-1 bg-white/20 backdrop-blur-md rounded-lg text-xs font-medium flex items-center gap-1" style="">
+<span class="material-symbols-outlined text-[14px]" style="">groups</span> 8 Guests
+                        </span>
+</div>
+</div>
+</div>
+</div>
+<div class="px-4 py-2 grid gap-4 grid-cols-3">
+<div class="bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10 p-3">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary bg-primary/20 p-2 rounded-lg" style="">shopping_bag</span>
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full" style="">4 New</span>
+</div>
+<p class="text-sm font-bold" style="">Supplies</p>
+<p class="text-xs text-slate-500 dark:text-slate-400" style="">12 items total</p>
+</div>
+<div class="bg-primary/5 dark:bg-primary/10 rounded-xl border border-primary/10 p-3">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary bg-primary/20 p-2 rounded-lg" style="">directions_car</span>
+<span class="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full" style="">2 Avail</span>
+</div>
+<p class="text-sm font-bold" style="">Carpool</p>
+<p class="text-xs text-slate-500 dark:text-slate-400" style="">Rides active</p>
+</div><div class="bg-primary/5 dark:bg-primary/10 p-3 rounded-xl border border-primary/10">
+<div class="flex items-center justify-between mb-2">
+<span class="material-symbols-outlined text-primary bg-primary/20 p-2 rounded-lg" style="">account_balance_wallet</span>
+<span class="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full" style="">Updated</span>
+</div>
+<p class="text-sm font-bold" style="">Expenses</p>
+<p class="text-xs text-slate-500 dark:text-slate-400" style="">$245 total</p>
+</div>
+</div>
+<section class="mt-6 px-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-bold" style="">Group Members</h3>
+<button class="text-primary text-sm font-semibold" style="">View All</button>
+</div>
+<div class="space-y-3">
+<div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of a smiling young man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJOPgP_CwpcW0u4sJU2oRAI3gCZYaG1tVqrdp1J8cUkChlo55EUNjx6Uyq5h_JgvdAex5Vzz8lFjfTq_woUT1a4hRbYfMW0EJ6I4kRvCf_bbb49jN92YQo3poXEuWUEJNihdRBN3PNBvsYULv7hVFIt1zVKCaCNrBNbZeukOr_jT2jBUOBcmv-F79Z4RJiv34QJgFlnNP1OmEEUE9fHkW8kQq0JAcd4vckOrNJBkxw92brIhnutfOxogN5YQCDeKVKFaKFCC_R0P-N" style=""/>
+<div class="flex-1">
+<p class="text-sm font-bold" style="">Alex Johnson</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="flex items-center text-[10px] text-slate-500 font-medium" style="">
+<span class="material-symbols-outlined text-[12px] mr-1" style="">bedtime</span>6 nights
+                            </span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end gap-1">
+<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase" style="">Paid up</span>
+<button class="material-symbols-outlined text-slate-400 text-[18px]" style="">more_vert</button>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+<div class="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg" style="">MJ</div>
+<div class="flex-1">
+<p class="text-sm font-bold" style="">Marcus James</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="flex items-center text-[10px] text-slate-500 font-medium" style="">
+<span class="material-symbols-outlined text-[12px] mr-1" style="">bedtime</span>6 nights
+                            </span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end gap-1">
+<span class="px-2 py-0.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-[10px] font-bold rounded-full uppercase" style="">$150 Due</span>
+<button class="material-symbols-outlined text-slate-400 text-[18px]" style="">more_vert</button>
+</div>
+</div>
+<div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-100 dark:border-slate-800">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of a woman with long hair" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPXUGebDR-qoe3oUinhmdO7Phm4W_t593n3csN4tiS1EeTuuu4_Sl6PMyXcTMzCZkrF46loh3wCB9A46z5AL9I-RGXG8APrwYrqLjU71K3DYbemwEFid93fRrbUHrqHe_mHP_7WgSBGc5VAl9EDBB1KxdyQP2IYeYY0sYF8Kjt2N03Ct5RpzthLeKDOvvm_v_1qvcDssJBWnGwCVebKoFzzADzhDUmLKX12nFerJIno_MCiMh04XYeh0D0bQFnzx7kTPQYgh58uUfh" style=""/>
+<div class="flex-1">
+<p class="text-sm font-bold" style="">Sarah Williams</p>
+<div class="flex items-center gap-2 mt-1">
+<span class="flex items-center text-[10px] text-slate-500 font-medium" style="">
+<span class="material-symbols-outlined text-[12px] mr-1" style="">bedtime</span>4 nights
+                            </span>
+</div>
+</div>
+<div class="text-right flex flex-col items-end gap-1">
+<span class="px-2 py-0.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-[10px] font-bold rounded-full uppercase" style="">Paid up</span>
+<button class="material-symbols-outlined text-slate-400 text-[18px]" style="">more_vert</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 bg-white dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 px-2 pb-6 pt-2 flex justify-around items-center">
+<a class="flex flex-col items-center gap-1 group" href="#" style="">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style="">flight</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary" style="">Trip</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#" style="">
+<span class="material-symbols-outlined text-primary fill" style="">villa</span>
+<span class="text-[10px] font-bold text-primary" style="">Lodging</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#" style="">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style="">shopping_bag</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary" style="">Supplies</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#" style="">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style="">directions_car</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary" style="">Carpool</span>
+</a>
+<a class="flex flex-col items-center gap-1 group" href="#" style="">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors" style="">group</span>
+<span class="text-[10px] font-medium text-slate-400 group-hover:text-primary" style="">Group</span>
+</a>
+</nav>
+</body></html>

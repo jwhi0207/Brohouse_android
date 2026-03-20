@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>My Trips - BroHouse</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0061A4", // Material 3 Blue for a "cool blue" scheme
+                        "on-primary": "#ffffff",
+                        "primary-container": "#D1E4FF",
+                        "on-primary-container": "#001D36",
+                        "background-light": "#F8F9FF",
+                        "background-dark": "#1A1C1E",
+                        "surface": "#FDFBFF",
+                        "outline": "#73777F",
+                        "secondary": "#535F70",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "3xl": "1.5rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Public Sans', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .fill-icon { font-variation-settings: 'FILL' 1; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen font-display">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-30 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center justify-between px-4 py-4 max-w-2xl mx-auto">
+<h1 class="text-2xl font-semibold tracking-tight">My Trips</h1>
+<button class="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">logout</span>
+</button>
+</div>
+</header>
+<!-- Main Content -->
+<main class="max-w-2xl mx-auto px-4 pb-32">
+<!-- Tabs -->
+<div class="flex gap-4 py-4 overflow-x-auto no-scrollbar">
+<button class="px-5 py-2 rounded-full bg-primary text-white font-medium text-sm">Upcoming</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium text-sm">Past</button>
+<button class="px-5 py-2 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium text-sm">Invites</button>
+</div>
+<!-- Trip List -->
+<div class="space-y-4">
+<!-- Trip Card 1: Pending Invite -->
+<div class="group relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+<div class="h-48 w-full bg-slate-200 dark:bg-slate-800 relative">
+<img alt="Santorini beach" class="w-full h-full object-cover" data-alt="Scenic view of Santorini with blue domes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBIPWzS2qdatm0mqj_6notQzZl5JFlglt7kshSuqu8n4pUYrQze-sF4YowJC5RvcTPo46BmFAHjun0K3weuPvzf_DuIWd7O6YLph1iG3BabAuOXX-bV1RUrNoCRkyV1vNpkV3AXy-mXhdRxaopDcc94KS-rW15QMnwmUqEOEIVxVLvgbbxvg-I2Z5WuYmh_KuTKWcnsCQGtGDkjax8j0GxllZO10WvvQh1YNIdd2zDoD2Kgv0n28AkE8Bn7GNv2BBqER5baX6PLHAH7"/>
+<div class="absolute top-3 left-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur px-3 py-1 rounded-full border border-primary/20">
+<span class="text-xs font-bold text-primary flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">mail</span>
+                            PENDING INVITE
+                        </span>
+</div>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Summer in Santorini</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">July 12-18, 2026</p>
+</div>
+<div class="flex items-center gap-1 text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-sm">group</span>
+<span class="text-xs font-medium">8</span>
+</div>
+</div>
+<div class="mt-4 flex gap-2">
+<button class="flex-1 py-2 bg-primary text-white rounded-xl text-sm font-semibold hover:bg-primary/90 transition-colors">Accept</button>
+<button class="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Decline</button>
+</div>
+</div>
+</div>
+<!-- Trip Card 2 -->
+<div class="group relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+<div class="h-48 w-full bg-slate-200 dark:bg-slate-800">
+<img alt="Tokyo street" class="w-full h-full object-cover" data-alt="Neon streets of Tokyo at night" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJIe2qGZuACq1WPP8rbF-BGrQNBX6T_eD-RImICt5jd7lZgmJxxjcHvdC_VLyFn_WZuZJfGI-Y60dB1ev_B3LinUtaM0gDsXll6MxD8vqvNXL6zcvEtL1ihgyJLZ3Fs32olR4k91ENcX_saEp3Ry2LBEQL_n48j02oN95pxc8E2zTXtKtNs1cBJWbtcGTMlt2upZ5XuP4l-WXCpGKtxqH7iGEbXq9INQ4Lz_lmHMCH9eg4MVc3iY_A3ofA8HjOxFFRwBW43WIQxjg5"/>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Tokyo Adventure</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">October 5-12, 2026</p>
+</div>
+<div class="flex items-center gap-1 text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-sm">group</span>
+<span class="text-xs font-medium">4</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Trip Card 3 -->
+<div class="group relative overflow-hidden rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-shadow">
+<div class="h-48 w-full bg-slate-200 dark:bg-slate-800">
+<img alt="Swiss Alps" class="w-full h-full object-cover" data-alt="Snowy peaks of the Swiss Alps" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAOubiU5Fd1-Jyyv7qBU4J9X2iJkYo-CYDu6ZQM5rSMg1RZomIbcN1AHU5029sykdjgvzTLGTFbMGjd5WJZE6vvrB8DcfT2o1HPkLIE_LyGWip9eX9o92fjHzO4TGKUOCPeOm74sF0_WpBYnu9_VesOsKtuqzc9ZFeq_JMYmqie3KmcC5vBRCH98Q1pTAN43io04WYeWTs98Smf7h2DN4sAF_guJQS02k0p8FHj9zVgwjZ9vu11sYLbBYyyP-pkFeJ6zV8r8KHJE56-"/>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-slate-100">Alpine Retreat</h3>
+<p class="text-slate-500 dark:text-slate-400 text-sm mt-1">December 20-27, 2026</p>
+</div>
+<div class="flex items-center gap-1 text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-lg">
+<span class="material-symbols-outlined text-sm">group</span>
+<span class="text-xs font-medium">6</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- FAB (Floating Action Button) -->
+<button class="fixed bottom-24 right-6 w-16 h-16 bg-primary-container text-on-primary-container rounded-2xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center group">
+<span class="material-symbols-outlined text-3xl transition-transform group-active:scale-90">add</span>
+</button>
+<!-- Bottom Navigation Bar (Contextual) -->
+<nav class="fixed bottom-0 left-0 right-0 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 px-6 py-3 flex justify-between items-center z-40">
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">explore</span>
+<span class="text-xs font-medium">Explore</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined fill-icon">card_travel</span>
+<span class="text-xs font-bold">My Trips</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">favorite</span>
+<span class="text-xs font-medium">Saved</span>
+</a>
+<a class="flex flex-col items-center gap-1 text-slate-500" href="#">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="text-xs font-medium">Profile</span>
+</a>
+</nav>
+<!-- Create Trip Bottom Sheet Overlay (Representation) -->
+<div class="fixed inset-0 bg-black/40 z-50 flex flex-col justify-end transition-opacity">
+<div class="bg-white dark:bg-slate-900 rounded-t-3xl p-6 shadow-2xl max-w-2xl mx-auto w-full border-x border-t border-slate-200 dark:border-slate-800">
+<!-- Handle -->
+<div class="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-6"></div>
+<h2 class="text-2xl font-semibold mb-6">Create New Trip</h2>
+<div class="space-y-6">
+<!-- Outlined TextField (Jetpack Compose Style) -->
+<div class="relative">
+<label class="absolute -top-2.5 left-3 bg-white dark:bg-slate-900 px-1 text-xs font-medium text-primary">Trip Name</label>
+<input class="w-full px-4 py-4 rounded-xl border-2 border-primary bg-transparent focus:ring-0 focus:outline-none text-slate-900 dark:text-slate-100 placeholder-slate-400" placeholder="e.g., Weekend in Paris" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4 pt-4">
+<button class="py-3.5 px-4 text-primary font-bold hover:bg-primary/5 rounded-xl transition-colors">
+                        Cancel
+                    </button>
+<button class="py-3.5 px-4 bg-primary text-white font-bold rounded-xl shadow-md hover:bg-primary/90 transition-colors">
+                        Create
+                    </button>
+</div>
+</div>
+<!-- Safe area spacer -->
+<div class="h-6"></div>
+</div>
+</div>
+</body></html>

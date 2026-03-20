@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3b82f6",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                        "surface": "#ffffff",
+                        "outline": "#cbd5e1",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Style date/time inputs to look more like the theme on mobile */
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            background: transparent;
+            bottom: 0;
+            color: transparent;
+            cursor: pointer;
+            height: auto;
+            left: 0;
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: auto;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="max-w-md mx-auto bg-background-light dark:bg-background-dark min-h-screen flex flex-col">
+<header class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-700 dark:text-slate-300">arrow_back</span>
+</button>
+<h1 class="text-xl font-semibold tracking-tight">House Details</h1>
+</div>
+<button class="px-6 py-2 bg-primary hover:bg-primary/90 text-white font-bold rounded-full transition-all shadow-sm active:scale-95">
+            Save
+        </button>
+</header>
+<main class="flex-1 overflow-y-auto">
+<div class="p-4 space-y-6">
+<section class="relative group">
+<div class="w-full aspect-video rounded-3xl overflow-hidden bg-slate-200 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 shadow-lg">
+<div class="w-full h-full bg-cover bg-center" data-alt="Modern luxury villa with pool and large windows" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCXPdKtopLUriBz0cvPqID5Ya5FaFbgInHkikyIW5oPr-G7b8SGrZD1bAMU3RrqdG-FeZgL4-_xgU8tvRTRKJZrnEyc7j6WXJrB77ZVVr3ZzXn4FO6frK9bEdaJWDZTYgrU6fcSKRlzLiwD-zQ2-5ytvRlZ4zzB8lvxNNaQdTqRL7OVpg8gWtNLOVsmIDQOkqkq89lz5DRvpOOU2VCXBJgRzOr2zl5Mhn56Ln9URANpgIy88nao6RwvvT9PZatHDEATbEuhO2IxxUWs')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-6">
+<p class="text-white text-sm font-medium opacity-90">Villa BroHouse Main View</p>
+</div>
+</div>
+</section>
+<section class="flex items-center gap-3 p-4 rounded-2xl bg-primary/10 border border-primary/20">
+<span class="material-symbols-outlined text-primary">admin_panel_settings</span>
+<div class="flex flex-col">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">Admin Only</p>
+<p class="text-xs text-slate-600 dark:text-slate-400">You have editing permissions for this travel house.</p>
+</div>
+</section>
+<div class="space-y-5">
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">House URL</label>
+<div class="relative group">
+<input class="w-full h-14 pl-4 pr-12 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-slate-400" placeholder="https://rentals.com/villa-123" type="text"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">content_paste</span>
+</button>
+</div>
+<div class="flex justify-end px-1">
+<a class="text-sm font-medium text-primary flex items-center gap-1 hover:underline" href="#">
+<span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            Open in Browser
+                        </a>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Total Nights</label>
+<div class="relative">
+<input class="w-full h-14 pl-4 pr-4 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="5" type="number"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">dark_mode</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 ml-1">Total Cost</label>
+<div class="relative">
+<div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</div>
+<input class="w-full h-14 pl-8 pr-4 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="1,200" type="number"/>
+</div>
+</div>
+</div>
+<!-- Arrival and Departure Sections -->
+<div class="space-y-4">
+<div class="space-y-3">
+<h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider ml-1">Arrival</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 ml-1">Check-in Date</label>
+<div class="relative">
+<input class="w-full h-14 pl-4 pr-10 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="date"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 ml-1">Check-in Time</label>
+<div class="relative">
+<input class="w-full h-14 pl-4 pr-10 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="time" value="15:00"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<h3 class="text-sm font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider ml-1">Departure</h3>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 ml-1">Check-out Date</label>
+<div class="relative">
+<input class="w-full h-14 pl-4 pr-10 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="date"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 ml-1">Check-out Time</label>
+<div class="relative">
+<input class="w-full h-14 pl-4 pr-10 rounded-xl border border-outline dark:border-slate-700 bg-transparent focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" type="time" value="11:00"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-4 space-y-4">
+<div class="flex items-center justify-between p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50">
+<div class="flex flex-col">
+<span class="text-sm font-semibold">Available for Guests</span>
+<span class="text-xs text-slate-500">Show this house in public planning</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+</main>
+<nav class="flex items-center border-t border-slate-200 dark:border-slate-800 bg-background-light dark:bg-background-dark px-2 pb-6 pt-2">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">map</span>
+<p class="text-[10px] font-medium leading-none text-slate-400 group-hover:text-primary">Trip</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1">villa</span>
+<p class="text-[10px] font-bold leading-none text-primary">Lodging</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">shopping_bag</span>
+<p class="text-[10px] font-medium leading-none text-slate-400 group-hover:text-primary">Supplies</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">directions_car</span>
+<p class="text-[10px] font-medium leading-none text-slate-400 group-hover:text-primary">Carpool</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<span class="material-symbols-outlined text-slate-400 group-hover:text-primary transition-colors">group</span>
+<p class="text-[10px] font-medium leading-none text-slate-400 group-hover:text-primary">Group</p>
+</a>
+</nav>
+</div>
+</body></html>

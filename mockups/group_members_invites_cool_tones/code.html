@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Group Members</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0061A4",
+                        "background-light": "#f8f9ff",
+                        "background-dark": "#1a1c1e",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Public Sans', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 antialiased font-display">
+<div class="max-w-md mx-auto min-h-screen flex flex-col bg-background-light dark:bg-background-dark shadow-xl relative overflow-hidden">
+<header class="sticky top-0 z-10 flex items-center bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-4 h-16 border-b border-primary/10">
+<button class="p-2 -ml-2 rounded-full hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined block text-slate-700 dark:text-slate-300">arrow_back</span>
+</button>
+<h1 class="ml-4 text-xl font-bold tracking-tight text-slate-900 dark:text-white">Group</h1>
+</header>
+<main class="flex-1 overflow-y-auto pb-24">
+<section class="p-4 m-4 rounded-xl bg-primary/5 dark:bg-primary/10 border border-primary/10">
+<h2 class="text-sm font-bold uppercase tracking-wider text-primary mb-3">Admin Only</h2>
+<div class="space-y-4">
+<div class="space-y-1.5">
+<label class="text-xs font-semibold text-slate-600 dark:text-slate-400 ml-1">Invite by Email</label>
+<input class="w-full h-12 px-4 rounded-lg border border-primary/20 bg-white dark:bg-slate-900 focus:border-primary focus:ring-0 text-slate-900 dark:text-white transition-colors" placeholder="friend@example.com" type="email"/>
+</div>
+<button class="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-lg transition-transform active:scale-95 shadow-md shadow-primary/20">
+                        Invite
+                    </button>
+</div>
+</section>
+<section class="px-4 py-2">
+<h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2 px-1">Pending Invites</h2>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<span class="text-sm font-medium text-slate-600 dark:text-slate-300">sarah.travels@gmail.com</span>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">cancel</span>
+</button>
+</div>
+<div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+<span class="text-sm font-medium text-slate-600 dark:text-slate-300">mike_j@outlook.com</span>
+<button class="text-slate-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">cancel</span>
+</button>
+</div>
+</div>
+</section>
+<div class="px-4 py-4">
+<div class="h-px bg-slate-200 dark:bg-slate-800"></div>
+</div>
+<section class="px-4 py-2">
+<h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4 px-1">Current Members</h2>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img class="w-12 h-12 rounded-full object-cover border-2 border-primary" data-alt="Close up portrait of a professional woman smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBEa17fayseuT9wxeE1bFWA6F3MdnnUBuJ_qflXl5ofnSRNbXyc5SrZ-ItvDAL269GTlK1eHxvpFNzrA3KtRZslEWdh06EnPSseLu_Xkefx_4hh87FFRp7MlKK_BCVsZgTZ42zPp2sPrwTGHhDG86DHu6azgHxw1iLUFDKC0DDgWmd_PKBS__KydZGrOZ7-mTwMFe6ZPs9azwOLl2IywvBwjLPhQvE8lunwGszAtTw_zXE54BY46iyfBeIiR1r2mC15lwGP-o4UTp_d"/>
+</div>
+<div class="flex-1">
+<div class="flex items-center gap-2">
+<h3 class="text-base font-bold text-slate-900 dark:text-white">Elena Rodriguez</h3>
+<span class="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold uppercase">Owner</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400">elena.rod@icloud.com</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<img class="w-12 h-12 rounded-full object-cover grayscale-[20%]" data-alt="Portrait of a young man with a friendly expression" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBf6JGQ8cS6aaIcbkbTjyaO-yOQq2V2THTHokyEKcym50NyCqnPs7LaiZhOeag-aj4bL9vJAYTof1Q40vxLVXKnJzhKn82g-G2VA9SiJN_65KkQF4y2COLYqSJXLIgK_JxthJ9q84khIVDRLHFtjYHL0TDht6_smf96vfffxoveKfjbp41_mSJJGig73AvpTOAt0PpedlCcmlXlI7rOEUzCUHS1PmXwpE_PkYwCub6kSGuvnvSf1CqwKW9foXIdffAUEp9SvmVu3uOm"/>
+<div class="flex-1">
+<h3 class="text-base font-bold text-slate-900 dark:text-white">Marcus Chen</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">m.chen88@gmail.com</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of a woman with curly hair smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDySB3ihFwWSNVXMCJZDbRvscYGFofHgW5Z2cqMxbITqOb7gsdJc9fKeTGAsarEZifEhwt_ameVIKPgv3NG6X_HdsVXZL3Jry9zH2Iwq_N3sqxWkHVb37uFonv78OiQVW8HKm5vpcubCB5RxwNf6D2q22HDQU2lErWPINWKtkRtRQZbT7kNC_EmuZNQjsyE3Q6zdqSp3jVJr6ec0u0MQKoVYsqk4BBEBV9qiFzZCY6PVmJ8mEfWwK8AUx1aqeU7OgTFMqaC9nObtGgU"/>
+<div class="flex-1">
+<h3 class="text-base font-bold text-slate-900 dark:text-white">Jordan Smith</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">jsmith.design@me.com</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of a man with beard looking at camera" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBnJ2ZV9cjBh7ATElSAwJrbuUMpxMga7aRj48KyitUIV8y0U0U_GKv9R4w2SGIQ3gBH-MJNee5AthoBvTGtQvgc-U42qq7Wk5kLdspEgMoDKQBpf3TfUqwTYLw2I8PSmYPZdeMdyWdhmv9PHK5jTiflbi7rSWZxDjbMUna_7eYEhnAMKbgRdZtHOUlxvUnEQXAWEZ_3nasF6-5IWHe1-djtZx3aQI-g68CO1Ck_fm8P9agEPgG8VpF-1qfkGZpiZiZOkJZqC5z0mFGS"/>
+<div class="flex-1">
+<h3 class="text-base font-bold text-slate-900 dark:text-white">David Miller</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">davidm_92@gmail.com</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/95 dark:bg-slate-950/95 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe shadow-2xl">
+<div class="flex h-16 items-center justify-around px-2">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">map</span>
+<span class="text-[10px] font-medium leading-none">Trip</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">bed</span>
+<span class="text-[10px] font-medium leading-none">Lodging</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">shopping_bag</span>
+<span class="text-[10px] font-medium leading-none">Supplies</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-slate-400 hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-[24px]">navigation</span>
+<span class="text-[10px] font-medium leading-none">Carpool</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 text-primary" href="#">
+<span class="material-symbols-outlined material-symbols-fill text-[24px]">group</span>
+<span class="text-[10px] font-bold leading-none">Group</span>
+</a>
+</div>
+</nav>
+</div>
+</body></html>
