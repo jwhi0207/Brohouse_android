@@ -287,21 +287,45 @@ fun PayExpensesSheet(
 
             Spacer(Modifier.height(20.dp))
 
-            Button(
-                onClick = {
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.parse("https://www.paypal.com/myaccount/transfer/homepage/pay")
-                    )
-                    context.startActivity(intent)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF003087),
-                    contentColor = Color.White
-                )
-            ) {
-                Text("Pay with PayPal", fontWeight = FontWeight.Bold)
+            Text(
+                "Pay with",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                modifier = Modifier.align(Alignment.Start)
+            )
+            Spacer(Modifier.height(8.dp))
+
+            val paymentApps = listOf(
+                Triple("PayPal",  Color(0xFF003087), "https://www.paypal.com/myaccount/transfer/homepage/pay"),
+                Triple("Venmo",   Color(0xFF3D95CE), "https://venmo.com/"),
+                Triple("Cash App",Color(0xFF00C244), "https://cash.app/"),
+                Triple("Zelle",   Color(0xFF6D1ED4), "https://www.zellepay.com/"),
+                Triple("GPay",    Color(0xFF000000), "https://pay.google.com/")
+            )
+
+            paymentApps.chunked(2).forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    row.forEach { (label, color, url) ->
+                        Button(
+                            onClick = {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = color,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(label, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    // If odd row, fill remaining space so the lone button doesn't stretch full-width
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.height(10.dp))
             }
         }
     }
