@@ -57,6 +57,14 @@ fun TripListScreen(
     var showJoinCodeDialog by remember { mutableStateOf(false) }
     val joinCodeError by viewModel.joinCodeError.collectAsState()
     val joinCodeLoading by viewModel.joinCodeLoading.collectAsState()
+    val joinCodeSuccess by viewModel.joinCodeSuccess.collectAsState()
+
+    LaunchedEffect(joinCodeSuccess) {
+        if (joinCodeSuccess) {
+            showJoinCodeDialog = false
+            viewModel.clearJoinCodeSuccess()
+        }
+    }
 
     // TODO: split Upcoming/Past by startDate when that field is added to Trip
     val displayedTrips = when (selectedTab) {

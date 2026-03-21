@@ -35,6 +35,9 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
     private val _joinCodeLoading = MutableStateFlow(false)
     val joinCodeLoading = _joinCodeLoading.asStateFlow()
 
+    private val _joinCodeSuccess = MutableStateFlow(false)
+    val joinCodeSuccess = _joinCodeSuccess.asStateFlow()
+
     fun joinByCode(code: String) = viewModelScope.launch {
         _joinCodeError.value = null
         _joinCodeLoading.value = true
@@ -56,6 +59,7 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
             val email = user.email ?: ""
             val avatarSeed = userDoc.getLong("avatarSeed") ?: 0L
             tripRepo.joinTripByCode(trip.id, uid, displayName, email, avatarSeed)
+            _joinCodeSuccess.value = true
         } catch (e: IllegalStateException) {
             _joinCodeError.value = e.message
         } catch (e: Exception) {
@@ -68,6 +72,10 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
 
     fun clearJoinCodeError() {
         _joinCodeError.value = null
+    }
+
+    fun clearJoinCodeSuccess() {
+        _joinCodeSuccess.value = false
     }
 
     fun acceptInvite(tripId: String) = viewModelScope.launch {
