@@ -25,8 +25,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -481,9 +483,8 @@ private fun JoinWithCodeDialog(
     onJoin: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var rawInput by remember { mutableStateOf("") }
-    val stripped = rawInput.uppercase().filter { it.isLetterOrDigit() }.take(8)
-    val formatted = if (stripped.length > 4) "${stripped.substring(0, 4)}-${stripped.substring(4)}" else stripped
+    var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
+    val stripped = textFieldValue.text.filter { it.isLetterOrDigit() }
     val canJoin = stripped.length == 8 && !isLoading
 
     AlertDialog(
@@ -492,9 +493,14 @@ private fun JoinWithCodeDialog(
         text = {
             Column {
                 OutlinedTextField(
-                    value = formatted,
+                    value = textFieldValue,
                     onValueChange = { newValue ->
-                        rawInput = newValue.uppercase().filter { it.isLetterOrDigit() }.take(8)
+                        val newRaw = newValue.text.uppercase().filter { it.isLetterOrDigit() }.take(8)
+                        val newFormatted = if (newRaw.length > 4) "${newRaw.substring(0, 4)}-${newRaw.substring(4)}" else newRaw
+                        textFieldValue = TextFieldValue(
+                            text = newFormatted,
+                            selection = TextRange(newFormatted.length)
+                        )
                     },
                     placeholder = { Text("XXXX-XXXX") },
                     singleLine = true,
@@ -520,7 +526,7 @@ private fun JoinWithCodeDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onJoin(formatted) },
+                onClick = { onJoin(textFieldValue.text) },
                 enabled = canJoin
             ) { Text("Join") }
         },
