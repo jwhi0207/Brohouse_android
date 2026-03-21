@@ -413,6 +413,13 @@ fun TripDashboard(
         PaymentHistorySheet(
             memberName = member.displayName,
             events = history,
+            isAdmin = isAdmin,
+            onRevertEvent = { event ->
+                when (event.type) {
+                    "approved" -> viewModel.revertApprovedPayment(member.uid, event)
+                    "rejected" -> viewModel.revertRejectedPayment(member.uid, event)
+                }
+            },
             onDismiss = { paymentHistoryMember = null }
         )
     }

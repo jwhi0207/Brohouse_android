@@ -178,6 +178,40 @@ class TripRepository(
         logPaymentEvent(tripId, uid, "rejected", amount, actorName)
     }
 
+    suspend fun revertApprovedPayment(
+        tripId: String,
+        uid: String,
+        newAmountPaid: Double,
+        eventAmount: Double,
+        actorName: String
+    ) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "amountPaid" to newAmountPaid,
+                    "pendingPaymentAmount" to eventAmount,
+                    "pendingPaymentStatus" to "pending"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
+    }
+
+    suspend fun revertRejectedPayment(
+        tripId: String,
+        uid: String,
+        eventAmount: Double,
+        actorName: String
+    ) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "pendingPaymentAmount" to eventAmount,
+                    "pendingPaymentStatus" to "pending"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
+    }
+
     private suspend fun logPaymentEvent(
         tripId: String,
         uid: String,

@@ -395,6 +395,8 @@ fun VerifyPaymentSheet(
 fun PaymentHistorySheet(
     memberName: String,
     events: List<com.bennybokki.frientrip.data.PaymentEvent>,
+    isAdmin: Boolean = false,
+    onRevertEvent: (com.bennybokki.frientrip.data.PaymentEvent) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -440,7 +442,13 @@ fun PaymentHistorySheet(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(events) { event ->
-                        PaymentEventRow(event = event, currency = currency, dateFmt = dateFmt)
+                        PaymentEventRow(
+                            event = event,
+                            currency = currency,
+                            dateFmt = dateFmt,
+                            showRevert = isAdmin && (event.type == "approved" || event.type == "rejected"),
+                            onRevert = { onRevertEvent(event) }
+                        )
                     }
                 }
             }
@@ -452,28 +460,35 @@ fun PaymentHistorySheet(
 private fun PaymentEventRow(
     event: com.bennybokki.frientrip.data.PaymentEvent,
     currency: java.text.NumberFormat,
-    dateFmt: java.text.SimpleDateFormat
+    dateFmt: java.text.SimpleDateFormat,
+    showRevert: Boolean = false,
+    onRevert: () -> Unit = {}
 ) {
     val isApproved = event.type == "approved"
     val isRejected = event.type == "rejected"
+    val isReverted = event.type == "reverted"
     val icon = when {
         isApproved -> Icons.Default.CheckCircle
         isRejected -> Icons.Default.Cancel
+        isReverted -> Icons.Default.Undo
         else -> Icons.Default.Upload
     }
     val label = when {
         isApproved -> "Approved by ${event.actorName}"
         isRejected -> "Rejected by ${event.actorName}"
+        isReverted -> "Reverted by ${event.actorName}"
         else -> "Submitted by ${event.actorName}"
     }
     val iconColor = when {
         isApproved -> Color(0xFF1B5E20)
         isRejected -> Color(0xFFB71C1C)
+        isReverted -> Color(0xFF5C6BC0)
         else -> MaterialTheme.colorScheme.primary
     }
     val bgColor = when {
         isApproved -> Color(0xFFE8F5E9)
         isRejected -> Color(0xFFFFEBEE)
+        isReverted -> Color(0xFFE8EAF6)
         else -> MaterialTheme.colorScheme.primaryContainer
     }
 
@@ -483,34 +498,53 @@ private fun PaymentEventRow(
         tonalElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(bgColor),
-                contentAlignment = Alignment.Center
+        Column {
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
-            }
-            Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(bgColor),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                    Text(
+                        dateFmt.format(java.util.Date(event.timestamp)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                }
                 Text(
-                    dateFmt.format(java.util.Date(event.timestamp)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    currency.format(event.amount),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = iconColor
                 )
             }
-            Text(
-                currency.format(event.amount),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = iconColor
-            )
+            if (showRevert) {
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 14.dp))
+                TextButton(
+                    onClick = onRevert,
+                    modifier = Modifier
+                        .align(Alignment.End)
+                        .padding(end = 8.dp, bottom = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Undo,
+                        contentDescription = null,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Revert", style = MaterialTheme.typography.labelMedium)
+                }
+            }
         }
     }
 }

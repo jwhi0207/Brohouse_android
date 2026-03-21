@@ -107,6 +107,18 @@ class TripViewModel(
 
     fun getPaymentHistory(uid: String) = repo.getPaymentHistory(tripId, uid)
 
+    fun revertApprovedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
+        val currentMember = members.value.find { it.uid == memberUid } ?: return@launch
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        val newAmountPaid = maxOf(0.0, currentMember.amountPaid - event.amount)
+        repo.revertApprovedPayment(tripId, memberUid, newAmountPaid, event.amount, adminName)
+    }
+
+    fun revertRejectedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.revertRejectedPayment(tripId, memberUid, event.amount, adminName)
+    }
+
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
