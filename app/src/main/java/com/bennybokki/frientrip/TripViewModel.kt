@@ -34,6 +34,23 @@ class TripViewModel(
     val trip = repo.getTripDetails(tripId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private var backfillAttempted = false
+
+    init {
+        viewModelScope.launch {
+            trip.collect { t ->
+                if (t != null && t.inviteCode == null && !backfillAttempted) {
+                    backfillAttempted = true
+                    try {
+                        repo.regenerateInviteCode(tripId)
+                    } catch (e: Exception) {
+                        Log.e("TripViewModel", "Invite code backfill failed", e)
+                    }
+                }
+            }
+        }
+    }
+
     val members = repo.getMembers(tripId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -319,5 +336,21 @@ class TripViewModel(
 
     fun cancelInvite(email: String) = viewModelScope.launch {
         repo.cancelInvite(tripId, email)
+    }
+
+    fun toggleInviteCode(enabled: Boolean) = viewModelScope.launch {
+        try {
+            repo.setInviteCodeEnabled(tripId, enabled)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "toggleInviteCode failed", e)
+        }
+    }
+
+    fun regenerateInviteCode() = viewModelScope.launch {
+        try {
+            repo.regenerateInviteCode(tripId)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "regenerateInviteCode failed", e)
+        }
     }
 }

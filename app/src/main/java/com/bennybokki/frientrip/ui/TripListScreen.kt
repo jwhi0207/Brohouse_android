@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.GroupAdd
 import androidx.compose.material.icons.filled.Mail
 import androidx.compose.material.icons.filled.NightlightRound
 import androidx.compose.material3.*
@@ -51,6 +52,9 @@ fun TripListScreen(
     var selectedTab by remember { mutableStateOf(TripFilter.Upcoming) }
     var showCreateSheet by remember { mutableStateOf(false) }
     var showSignOutDialog by remember { mutableStateOf(false) }
+    var showJoinCodeDialog by remember { mutableStateOf(false) }
+    val joinCodeError by viewModel.joinCodeError.collectAsState()
+    val joinCodeLoading by viewModel.joinCodeLoading.collectAsState()
 
     // TODO: split Upcoming/Past by startDate when that field is added to Trip
     val displayedTrips = when (selectedTab) {
@@ -68,6 +72,13 @@ fun TripListScreen(
                     )
                 },
                 actions = {
+                    IconButton(onClick = { showJoinCodeDialog = true }) {
+                        Icon(
+                            Icons.Default.GroupAdd,
+                            contentDescription = "Join with Code",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                    }
                     IconButton(onClick = { showSignOutDialog = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.Logout,
@@ -224,6 +235,19 @@ fun TripListScreen(
             }
         )
     }
+
+    if (showJoinCodeDialog) {
+        JoinWithCodeDialog(
+            error = joinCodeError,
+            isLoading = joinCodeLoading,
+            onJoin = { code -> viewModel.joinByCode(code) },
+            onDismiss = {
+                viewModel.clearJoinCodeError()
+                showJoinCodeDialog = false
+            }
+        )
+    }
+
 }
 
 @Composable
@@ -448,4 +472,60 @@ private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
             }
         }
     }
+}
+
+@Composable
+private fun JoinWithCodeDialog(
+    error: String?,
+    isLoading: Boolean,
+    onJoin: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var rawInput by remember { mutableStateOf("") }
+    val stripped = rawInput.uppercase().filter { it.isLetterOrDigit() }.take(8)
+    val formatted = if (stripped.length > 4) "${stripped.substring(0, 4)}-${stripped.substring(4)}" else stripped
+    val canJoin = stripped.length == 8 && !isLoading
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Join with Invite Code") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = formatted,
+                    onValueChange = { newValue ->
+                        rawInput = newValue.uppercase().filter { it.isLetterOrDigit() }.take(8)
+                    },
+                    placeholder = { Text("XXXX-XXXX") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = error != null
+                )
+                if (error != null) {
+                    Text(
+                        error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
+                if (isLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onJoin(formatted) },
+                enabled = canJoin
+            ) { Text("Join") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
