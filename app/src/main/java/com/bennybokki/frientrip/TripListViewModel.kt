@@ -9,7 +9,9 @@ import com.bennybokki.frientrip.data.TripRepository
 import com.bennybokki.frientrip.data.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -26,6 +28,55 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
 
     val pendingInviteTrips = tripRepo.getPendingInviteTrips(currentEmail)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _joinCodeError = MutableStateFlow<String?>(null)
+    val joinCodeError = _joinCodeError.asStateFlow()
+
+    private val _joinCodeLoading = MutableStateFlow(false)
+    val joinCodeLoading = _joinCodeLoading.asStateFlow()
+
+    private val _joinCodeSuccess = MutableStateFlow(false)
+    val joinCodeSuccess = _joinCodeSuccess.asStateFlow()
+
+    fun joinByCode(code: String) = viewModelScope.launch {
+        _joinCodeError.value = null
+        _joinCodeLoading.value = true
+        try {
+            val trip = tripRepo.findTripByInviteCode(code)
+            if (trip == null) {
+                _joinCodeError.value = "Invalid or disabled invite code"
+                return@launch
+            }
+            val uid = currentUid
+            if (uid in trip.memberIds) {
+                _joinCodeError.value = "You're already a member of this trip"
+                return@launch
+            }
+            val user = FirebaseAuth.getInstance().currentUser ?: return@launch
+            val userDoc = FirebaseFirestore.getInstance()
+                .collection("users").document(user.uid).get().await()
+            val displayName = userDoc.getString("displayName") ?: user.displayName ?: "Unknown"
+            val email = user.email ?: ""
+            val avatarSeed = userDoc.getLong("avatarSeed") ?: 0L
+            tripRepo.joinTripByCode(trip.id, uid, displayName, email, avatarSeed)
+            _joinCodeSuccess.value = true
+        } catch (e: IllegalStateException) {
+            _joinCodeError.value = e.message
+        } catch (e: Exception) {
+            Log.e("TripListViewModel", "joinByCode failed: ${e.message}", e)
+            _joinCodeError.value = "Failed to join trip. Please try again."
+        } finally {
+            _joinCodeLoading.value = false
+        }
+    }
+
+    fun clearJoinCodeError() {
+        _joinCodeError.value = null
+    }
+
+    fun clearJoinCodeSuccess() {
+        _joinCodeSuccess.value = false
+    }
 
     fun acceptInvite(tripId: String) = viewModelScope.launch {
         try {

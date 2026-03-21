@@ -20,6 +20,20 @@ class TripRepository(
 ) {
     private val tripsCollection = db.collection("trips")
 
+    companion object {
+        private const val INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+        fun generateInviteCode(): String {
+            val chars = (1..8).map { INVITE_ALPHABET[Random.nextInt(INVITE_ALPHABET.length)] }
+            return "${chars.subList(0, 4).joinToString("")}-${chars.subList(4, 8).joinToString("")}"
+        }
+
+        fun normalizeInviteCode(raw: String): String {
+            val stripped = raw.uppercase().filter { it.isLetterOrDigit() }
+            return if (stripped.length == 8) "${stripped.substring(0, 4)}-${stripped.substring(4)}" else stripped
+        }
+    }
+
     // ─── Trip CRUD ───────────────────────────────────────────────────────────
 
     suspend fun createTrip(
@@ -40,7 +54,9 @@ class TripRepository(
             "totalNights" to 0,
             "totalCost" to 0.0,
             "memberIds" to listOf(ownerId),
-            "pendingInviteEmails" to emptyList<String>()
+            "pendingInviteEmails" to emptyList<String>(),
+            "inviteCode" to generateInviteCode(),
+            "inviteCodeEnabled" to true
         )
         val memberData = mapOf(
             "uid" to ownerId,
@@ -74,7 +90,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -98,7 +116,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 )
             } else {
@@ -121,7 +141,9 @@ class TripRepository(
                         email = doc.getString("email") ?: "",
                         avatarSeed = doc.getLong("avatarSeed") ?: 0L,
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
-                        amountPaid = doc.getDouble("amountPaid") ?: 0.0
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
+                        pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
+                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none"
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -140,6 +162,119 @@ class TripRepository(
                 )
             ).await()
     }
+
+    suspend fun submitPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
+        val memberRef = tripsCollection.document(tripId).collection("members").document(uid)
+        memberRef.update(
+            mapOf(
+                "pendingPaymentAmount" to amount,
+                "pendingPaymentStatus" to "pending"
+            )
+        ).await()
+        logPaymentEvent(tripId, uid, "submitted", amount, actorName)
+    }
+
+    suspend fun approvePendingPayment(tripId: String, member: TripMember, actorName: String) {
+        val newAmountPaid = member.amountPaid + member.pendingPaymentAmount
+        tripsCollection.document(tripId).collection("members").document(member.uid)
+            .update(
+                mapOf(
+                    "amountPaid" to newAmountPaid,
+                    "pendingPaymentAmount" to 0.0,
+                    "pendingPaymentStatus" to "none"
+                )
+            ).await()
+        logPaymentEvent(tripId, member.uid, "approved", member.pendingPaymentAmount, actorName)
+    }
+
+    suspend fun rejectPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "pendingPaymentAmount" to 0.0,
+                    "pendingPaymentStatus" to "rejected"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "rejected", amount, actorName)
+    }
+
+    suspend fun revertApprovedPayment(
+        tripId: String,
+        uid: String,
+        newAmountPaid: Double,
+        eventAmount: Double,
+        actorName: String
+    ) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "amountPaid" to newAmountPaid,
+                    "pendingPaymentAmount" to eventAmount,
+                    "pendingPaymentStatus" to "pending"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
+    }
+
+    suspend fun revertRejectedPayment(
+        tripId: String,
+        uid: String,
+        eventAmount: Double,
+        actorName: String
+    ) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "pendingPaymentAmount" to eventAmount,
+                    "pendingPaymentStatus" to "pending"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
+    }
+
+    private suspend fun logPaymentEvent(
+        tripId: String,
+        uid: String,
+        type: String,
+        amount: Double,
+        actorName: String
+    ) {
+        val data = mapOf(
+            "type" to type,
+            "amount" to amount,
+            "actorName" to actorName,
+            "timestamp" to System.currentTimeMillis()
+        )
+        tripsCollection.document(tripId)
+            .collection("members").document(uid)
+            .collection("paymentHistory")
+            .add(data).await()
+    }
+
+    fun getPaymentHistory(tripId: String, uid: String): kotlinx.coroutines.flow.Flow<List<PaymentEvent>> =
+        callbackFlow {
+            val listener = tripsCollection.document(tripId)
+                .collection("members").document(uid)
+                .collection("paymentHistory")
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snap, error ->
+                    if (error != null) {
+                        Log.e("TripRepository", "getPaymentHistory failed", error)
+                        return@addSnapshotListener
+                    }
+                    val events = snap?.documents?.map { doc ->
+                        PaymentEvent(
+                            id = doc.id,
+                            type = doc.getString("type") ?: "",
+                            amount = doc.getDouble("amount") ?: 0.0,
+                            actorName = doc.getString("actorName") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L
+                        )
+                    } ?: emptyList()
+                    trySend(events)
+                }
+            awaitClose { listener.remove() }
+        }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
@@ -337,7 +472,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -361,6 +498,69 @@ class TripRepository(
         val current = (trip.get("pendingInviteEmails") as? List<*>)
             ?.filterIsInstance<String>() ?: emptyList()
         tripRef.update("pendingInviteEmails", current.filter { it != email }).await()
+    }
+
+    // ─── Invite Codes ──────────────────────────────────────────────────────────
+
+    suspend fun findTripByInviteCode(code: String): Trip? {
+        val normalized = normalizeInviteCode(code)
+        val snap = tripsCollection
+            .whereEqualTo("inviteCode", normalized)
+            .whereEqualTo("inviteCodeEnabled", true)
+            .get()
+            .await()
+        val doc = snap.documents.firstOrNull() ?: return null
+        return Trip(
+            id = doc.id,
+            name = doc.getString("name") ?: "",
+            ownerId = doc.getString("ownerId") ?: "",
+            houseURL = doc.getString("houseURL") ?: "",
+            thumbnailURL = doc.getString("thumbnailURL"),
+            address = doc.getString("address") ?: "",
+            totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
+            totalCost = doc.getDouble("totalCost") ?: 0.0,
+            checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+            checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
+            memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            inviteCode = doc.getString("inviteCode"),
+            inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+        )
+    }
+
+    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long) {
+        val tripRef = tripsCollection.document(tripId)
+        val tripDoc = tripRef.get().await()
+        val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        if (uid in currentMembers) throw IllegalStateException("Already a member of this trip")
+
+        db.runBatch { batch ->
+            batch.update(tripRef, "memberIds", currentMembers + uid)
+            batch.set(
+                tripRef.collection("members").document(uid),
+                mapOf(
+                    "uid" to uid,
+                    "displayName" to displayName,
+                    "email" to email,
+                    "avatarSeed" to avatarSeed,
+                    "nightsStayed" to 0,
+                    "amountPaid" to 0.0
+                )
+            )
+        }.await()
+    }
+
+    suspend fun setInviteCodeEnabled(tripId: String, enabled: Boolean) {
+        tripsCollection.document(tripId).update("inviteCodeEnabled", enabled).await()
+    }
+
+    suspend fun regenerateInviteCode(tripId: String): String {
+        val newCode = generateInviteCode()
+        tripsCollection.document(tripId).update(mapOf(
+            "inviteCode" to newCode,
+            "inviteCodeEnabled" to true
+        )).await()
+        return newCode
     }
 
     // ─── Rides ────────────────────────────────────────────────────────────────

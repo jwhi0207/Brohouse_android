@@ -6,5 +6,7 @@ data class TripMember(
     val email: String = "",
     val avatarSeed: Long = 0L,
     val nightsStayed: Int = 0,
-    val amountPaid: Double = 0.0   // amount paid toward their computed share
+    val amountPaid: Double = 0.0,  // amount paid toward their computed share
+    val pendingPaymentAmount: Double = 0.0,
+    val pendingPaymentStatus: String = "none" // "none" | "pending" | "rejected"
 )
