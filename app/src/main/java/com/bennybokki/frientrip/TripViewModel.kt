@@ -91,6 +91,22 @@ class TripViewModel(
         repo.updateMember(tripId, member.copy(amountPaid = member.amountPaid + amount))
     }
 
+    fun submitPaymentForReview(member: TripMember, amount: Double) = viewModelScope.launch {
+        repo.submitPendingPayment(tripId, member.uid, amount, member.displayName)
+    }
+
+    fun approvePendingPayment(member: TripMember) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.approvePendingPayment(tripId, member, adminName)
+    }
+
+    fun rejectPendingPayment(member: TripMember) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.rejectPendingPayment(tripId, member.uid, member.pendingPaymentAmount, adminName)
+    }
+
+    fun getPaymentHistory(uid: String) = repo.getPaymentHistory(tripId, uid)
+
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {

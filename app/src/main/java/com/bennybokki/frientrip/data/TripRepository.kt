@@ -121,7 +121,9 @@ class TripRepository(
                         email = doc.getString("email") ?: "",
                         avatarSeed = doc.getLong("avatarSeed") ?: 0L,
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
-                        amountPaid = doc.getDouble("amountPaid") ?: 0.0
+                        amountPaid = doc.getDouble("amountPaid") ?: 0.0,
+                        pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
+                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none"
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -140,6 +142,85 @@ class TripRepository(
                 )
             ).await()
     }
+
+    suspend fun submitPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
+        val memberRef = tripsCollection.document(tripId).collection("members").document(uid)
+        memberRef.update(
+            mapOf(
+                "pendingPaymentAmount" to amount,
+                "pendingPaymentStatus" to "pending"
+            )
+        ).await()
+        logPaymentEvent(tripId, uid, "submitted", amount, actorName)
+    }
+
+    suspend fun approvePendingPayment(tripId: String, member: TripMember, actorName: String) {
+        val newAmountPaid = member.amountPaid + member.pendingPaymentAmount
+        tripsCollection.document(tripId).collection("members").document(member.uid)
+            .update(
+                mapOf(
+                    "amountPaid" to newAmountPaid,
+                    "pendingPaymentAmount" to 0.0,
+                    "pendingPaymentStatus" to "none"
+                )
+            ).await()
+        logPaymentEvent(tripId, member.uid, "approved", member.pendingPaymentAmount, actorName)
+    }
+
+    suspend fun rejectPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
+        tripsCollection.document(tripId).collection("members").document(uid)
+            .update(
+                mapOf(
+                    "pendingPaymentAmount" to 0.0,
+                    "pendingPaymentStatus" to "rejected"
+                )
+            ).await()
+        logPaymentEvent(tripId, uid, "rejected", amount, actorName)
+    }
+
+    private suspend fun logPaymentEvent(
+        tripId: String,
+        uid: String,
+        type: String,
+        amount: Double,
+        actorName: String
+    ) {
+        val data = mapOf(
+            "type" to type,
+            "amount" to amount,
+            "actorName" to actorName,
+            "timestamp" to System.currentTimeMillis()
+        )
+        tripsCollection.document(tripId)
+            .collection("members").document(uid)
+            .collection("paymentHistory")
+            .add(data).await()
+    }
+
+    fun getPaymentHistory(tripId: String, uid: String): kotlinx.coroutines.flow.Flow<List<PaymentEvent>> =
+        callbackFlow {
+            val listener = tripsCollection.document(tripId)
+                .collection("members").document(uid)
+                .collection("paymentHistory")
+                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                .addSnapshotListener { snap, error ->
+                    if (error != null) {
+                        Log.e("TripRepository", "getPaymentHistory failed", error)
+                        return@addSnapshotListener
+                    }
+                    val events = snap?.documents?.map { doc ->
+                        PaymentEvent(
+                            id = doc.id,
+                            type = doc.getString("type") ?: "",
+                            amount = doc.getDouble("amount") ?: 0.0,
+                            actorName = doc.getString("actorName") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L
+                        )
+                    } ?: emptyList()
+                    trySend(events)
+                }
+            awaitClose { listener.remove() }
+        }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────
 

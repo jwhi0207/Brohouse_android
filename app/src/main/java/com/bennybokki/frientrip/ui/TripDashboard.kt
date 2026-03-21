@@ -70,6 +70,9 @@ fun TripDashboard(
 
     var editNightsMember by remember { mutableStateOf<TripMember?>(null) }
     var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
+    var payExpensesMember by remember { mutableStateOf<TripMember?>(null) }
+    var verifyPaymentMember by remember { mutableStateOf<TripMember?>(null) }
+    var paymentHistoryMember by remember { mutableStateOf<TripMember?>(null) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
     val houseDetails = trip?.let {
@@ -326,7 +329,10 @@ fun TripDashboard(
                                 isAdmin = isAdmin,
                                 isCurrentUser = member.uid == currentUid,
                                 onEditNights = { editNightsMember = member },
-                                onAddPayment = { addPaymentMember = member }
+                                onAddPayment = { addPaymentMember = member },
+                                onPayExpenses = { payExpensesMember = member },
+                                onVerifyPayment = { verifyPaymentMember = member },
+                                onPaymentHistory = { paymentHistoryMember = member }
                             )
                             if (index < members.lastIndex) {
                                 HorizontalDivider(
@@ -368,6 +374,46 @@ fun TripDashboard(
                 viewModel.addPayment(member, amount)
                 addPaymentMember = null
             }
+        )
+    }
+
+    payExpensesMember?.let { member ->
+        val computedOwed = memberCosts[member.uid] ?: 0.0
+        val remaining = computedOwed - member.amountPaid
+        PayExpensesSheet(
+            amountDue = remaining,
+            pendingPaymentStatus = member.pendingPaymentStatus,
+            onDismiss = { payExpensesMember = null },
+            onSubmitPayment = { amount ->
+                val capped = if (amount > remaining) remaining else amount
+                viewModel.submitPaymentForReview(member, capped)
+                payExpensesMember = null
+            }
+        )
+    }
+
+    verifyPaymentMember?.let { member ->
+        VerifyPaymentSheet(
+            member = member,
+            onDismiss = { verifyPaymentMember = null },
+            onApprove = {
+                viewModel.approvePendingPayment(member)
+                verifyPaymentMember = null
+            },
+            onReject = {
+                viewModel.rejectPendingPayment(member)
+                verifyPaymentMember = null
+            }
+        )
+    }
+
+    paymentHistoryMember?.let { member ->
+        val historyFlow = remember(member.uid) { viewModel.getPaymentHistory(member.uid) }
+        val history by historyFlow.collectAsState(initial = emptyList())
+        PaymentHistorySheet(
+            memberName = member.displayName,
+            events = history,
+            onDismiss = { paymentHistoryMember = null }
         )
     }
 
@@ -710,13 +756,20 @@ fun MemberRowView(
     isAdmin: Boolean,
     isCurrentUser: Boolean,
     onEditNights: () -> Unit,
-    onAddPayment: () -> Unit
+    onAddPayment: () -> Unit,
+    onPayExpenses: () -> Unit = {},
+    onVerifyPayment: () -> Unit = {},
+    onPaymentHistory: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val remaining = computedOwed - member.amountPaid
     val isPaidUp = remaining <= 0.0
     val canEditNights = isCurrentUser || isAdmin
     val canAddPayment = isAdmin
+    val canPayExpenses = isCurrentUser || isAdmin
+    val hasPendingPayment = member.pendingPaymentStatus == "pending"
+    val canVerifyPayment = isAdmin && hasPendingPayment
+    val canViewHistory = isCurrentUser || isAdmin
     val currency = NumberFormat.getCurrencyInstance(Locale.US)
 
     Row(
@@ -748,14 +801,20 @@ fun MemberRowView(
             }
         }
 
-        // Status badge
-        when {
-            computedOwed == 0.0 || member.nightsStayed == 0 -> Unit
-            isPaidUp -> StatusBadge("PAID UP", Color(0xFF1B5E20), Color(0xFFE8F5E9))
-            else -> StatusBadge(currency.format(remaining) + " DUE", Color(0xFFB71C1C), Color(0xFFFFEBEE))
+        // Status badges
+        Column(horizontalAlignment = Alignment.End) {
+            when {
+                computedOwed == 0.0 || member.nightsStayed == 0 -> Unit
+                isPaidUp -> StatusBadge("PAID UP", Color(0xFF1B5E20), Color(0xFFE8F5E9))
+                else -> StatusBadge(currency.format(remaining) + " DUE", Color(0xFFB71C1C), Color(0xFFFFEBEE))
+            }
+            if (isAdmin && hasPendingPayment) {
+                Spacer(Modifier.height(4.dp))
+                StatusBadge("REVIEW", Color(0xFFE65100), Color(0xFFFFF3E0))
+            }
         }
 
-        if (canEditNights || canAddPayment) {
+        if (canEditNights || canAddPayment || canPayExpenses || canVerifyPayment || canViewHistory) {
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.size(36.dp)) {
                     Icon(
@@ -778,6 +837,27 @@ fun MemberRowView(
                             text = { Text("Add Payment") },
                             leadingIcon = { Icon(Icons.Filled.AttachMoney, null) },
                             onClick = { showMenu = false; onAddPayment() }
+                        )
+                    }
+                    if (canPayExpenses) {
+                        DropdownMenuItem(
+                            text = { Text("Pay Expenses") },
+                            leadingIcon = { Icon(Icons.Filled.Payment, null) },
+                            onClick = { showMenu = false; onPayExpenses() }
+                        )
+                    }
+                    if (canVerifyPayment) {
+                        DropdownMenuItem(
+                            text = { Text("Verify Payment") },
+                            leadingIcon = { Icon(Icons.Filled.FactCheck, null) },
+                            onClick = { showMenu = false; onVerifyPayment() }
+                        )
+                    }
+                    if (canViewHistory) {
+                        DropdownMenuItem(
+                            text = { Text("Payment History") },
+                            leadingIcon = { Icon(Icons.Filled.History, null) },
+                            onClick = { showMenu = false; onPaymentHistory() }
                         )
                     }
                 }
