@@ -20,6 +20,20 @@ class TripRepository(
 ) {
     private val tripsCollection = db.collection("trips")
 
+    companion object {
+        private const val INVITE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+        fun generateInviteCode(): String {
+            val chars = (1..8).map { INVITE_ALPHABET[Random.nextInt(INVITE_ALPHABET.length)] }
+            return "${chars.subList(0, 4).joinToString("")}-${chars.subList(4, 8).joinToString("")}"
+        }
+
+        fun normalizeInviteCode(raw: String): String {
+            val stripped = raw.uppercase().filter { it.isLetterOrDigit() }
+            return if (stripped.length == 8) "${stripped.substring(0, 4)}-${stripped.substring(4)}" else stripped
+        }
+    }
+
     // ─── Trip CRUD ───────────────────────────────────────────────────────────
 
     suspend fun createTrip(
@@ -40,7 +54,9 @@ class TripRepository(
             "totalNights" to 0,
             "totalCost" to 0.0,
             "memberIds" to listOf(ownerId),
-            "pendingInviteEmails" to emptyList<String>()
+            "pendingInviteEmails" to emptyList<String>(),
+            "inviteCode" to generateInviteCode(),
+            "inviteCodeEnabled" to true
         )
         val memberData = mapOf(
             "uid" to ownerId,
@@ -74,7 +90,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -98,7 +116,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 )
             } else {
@@ -452,7 +472,9 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                        pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        inviteCode = doc.getString("inviteCode"),
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -476,6 +498,66 @@ class TripRepository(
         val current = (trip.get("pendingInviteEmails") as? List<*>)
             ?.filterIsInstance<String>() ?: emptyList()
         tripRef.update("pendingInviteEmails", current.filter { it != email }).await()
+    }
+
+    // ─── Invite Codes ──────────────────────────────────────────────────────────
+
+    suspend fun findTripByInviteCode(code: String): Trip? {
+        val normalized = normalizeInviteCode(code)
+        val snap = tripsCollection
+            .whereEqualTo("inviteCode", normalized)
+            .whereEqualTo("inviteCodeEnabled", true)
+            .get()
+            .await()
+        val doc = snap.documents.firstOrNull() ?: return null
+        return Trip(
+            id = doc.id,
+            name = doc.getString("name") ?: "",
+            ownerId = doc.getString("ownerId") ?: "",
+            houseURL = doc.getString("houseURL") ?: "",
+            thumbnailURL = doc.getString("thumbnailURL"),
+            address = doc.getString("address") ?: "",
+            totalNights = (doc.getLong("totalNights") ?: 0L).toInt(),
+            totalCost = doc.getDouble("totalCost") ?: 0.0,
+            checkInMillis = doc.getLong("checkInMillis") ?: 0L,
+            checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
+            memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            inviteCode = doc.getString("inviteCode"),
+            inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+        )
+    }
+
+    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long) {
+        val tripRef = tripsCollection.document(tripId)
+        val tripDoc = tripRef.get().await()
+        val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        if (uid in currentMembers) throw IllegalStateException("Already a member of this trip")
+
+        db.runBatch { batch ->
+            batch.update(tripRef, "memberIds", currentMembers + uid)
+            batch.set(
+                tripRef.collection("members").document(uid),
+                mapOf(
+                    "uid" to uid,
+                    "displayName" to displayName,
+                    "email" to email,
+                    "avatarSeed" to avatarSeed,
+                    "nightsStayed" to 0,
+                    "amountPaid" to 0.0
+                )
+            )
+        }.await()
+    }
+
+    suspend fun setInviteCodeEnabled(tripId: String, enabled: Boolean) {
+        tripsCollection.document(tripId).update("inviteCodeEnabled", enabled).await()
+    }
+
+    suspend fun regenerateInviteCode(tripId: String): String {
+        val newCode = generateInviteCode()
+        tripsCollection.document(tripId).update("inviteCode", newCode).await()
+        return newCode
     }
 
     // ─── Rides ────────────────────────────────────────────────────────────────
