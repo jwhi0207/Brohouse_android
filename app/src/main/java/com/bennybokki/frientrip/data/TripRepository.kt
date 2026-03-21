@@ -556,7 +556,10 @@ class TripRepository(
 
     suspend fun regenerateInviteCode(tripId: String): String {
         val newCode = generateInviteCode()
-        tripsCollection.document(tripId).update("inviteCode", newCode).await()
+        tripsCollection.document(tripId).update(mapOf(
+            "inviteCode" to newCode,
+            "inviteCodeEnabled" to true
+        )).await()
         return newCode
     }
 
