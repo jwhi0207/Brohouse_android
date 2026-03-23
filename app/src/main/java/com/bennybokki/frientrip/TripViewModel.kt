@@ -34,6 +34,23 @@ class TripViewModel(
     val trip = repo.getTripDetails(tripId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private var backfillAttempted = false
+
+    init {
+        viewModelScope.launch {
+            trip.collect { t ->
+                if (t != null && t.inviteCode == null && !backfillAttempted) {
+                    backfillAttempted = true
+                    try {
+                        repo.regenerateInviteCode(tripId)
+                    } catch (e: Exception) {
+                        Log.e("TripViewModel", "Invite code backfill failed", e)
+                    }
+                }
+            }
+        }
+    }
+
     val members = repo.getMembers(tripId)
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
@@ -89,6 +106,34 @@ class TripViewModel(
 
     fun addPayment(member: TripMember, amount: Double) = viewModelScope.launch {
         repo.updateMember(tripId, member.copy(amountPaid = member.amountPaid + amount))
+    }
+
+    fun submitPaymentForReview(member: TripMember, amount: Double) = viewModelScope.launch {
+        repo.submitPendingPayment(tripId, member.uid, amount, member.displayName)
+    }
+
+    fun approvePendingPayment(member: TripMember) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.approvePendingPayment(tripId, member, adminName)
+    }
+
+    fun rejectPendingPayment(member: TripMember) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.rejectPendingPayment(tripId, member.uid, member.pendingPaymentAmount, adminName)
+    }
+
+    fun getPaymentHistory(uid: String) = repo.getPaymentHistory(tripId, uid)
+
+    fun revertApprovedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
+        val currentMember = members.value.find { it.uid == memberUid } ?: return@launch
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        val newAmountPaid = maxOf(0.0, currentMember.amountPaid - event.amount)
+        repo.revertApprovedPayment(tripId, memberUid, newAmountPaid, event.amount, adminName)
+    }
+
+    fun revertRejectedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
+        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
+        repo.revertRejectedPayment(tripId, memberUid, event.amount, adminName)
     }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────
@@ -319,5 +364,21 @@ class TripViewModel(
 
     fun cancelInvite(email: String) = viewModelScope.launch {
         repo.cancelInvite(tripId, email)
+    }
+
+    fun toggleInviteCode(enabled: Boolean) = viewModelScope.launch {
+        try {
+            repo.setInviteCodeEnabled(tripId, enabled)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "toggleInviteCode failed", e)
+        }
+    }
+
+    fun regenerateInviteCode() = viewModelScope.launch {
+        try {
+            repo.regenerateInviteCode(tripId)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "regenerateInviteCode failed", e)
+        }
     }
 }
