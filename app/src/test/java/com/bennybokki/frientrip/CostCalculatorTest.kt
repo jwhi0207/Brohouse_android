@@ -9,13 +9,14 @@ import org.junit.Test
 
 class CostCalculatorTest {
 
-    private fun member(uid: String, nights: Int) = TripMember(
+    private fun member(uid: String, nights: Int, status: String = "active") = TripMember(
         uid = uid,
         displayName = uid,
         email = "$uid@test.com",
         avatarSeed = 0L,
         nightsStayed = nights,
-        amountPaid = 0.0
+        amountPaid = 0.0,
+        status = status
     )
 
     // ─── Guard conditions ────────────────────────────────────────────────────
@@ -193,6 +194,63 @@ class CostCalculatorTest {
         val result = CostCalculator.computeTotalShares(members, 5, houseCost, expenses)
         val sum = result.values.sum()
         assertEquals(houseCost + 120.0 + 80.0, sum, 0.001)
+    }
+
+    // ─── Deactivated member exclusion ────────────────────────────────────────
+    // The ViewModel filters to active members before calling CostCalculator.
+    // These tests verify the expected outcome of passing only active members.
+
+    @Test
+    fun `deactivated member excluded — remaining active members absorb full cost`() {
+        // Before deactivation: a, b, c each stay 3 nights → $100 each
+        // After deactivating c: a and b split $300 → $150 each
+        val activeMembers = listOf(member("a", 3), member("b", 3))
+        val result = CostCalculator.computeCostSplit(activeMembers, totalNights = 3, totalCost = 300.0)
+        assertEquals(150.0, result["a"]!!, 0.001)
+        assertEquals(150.0, result["b"]!!, 0.001)
+        // Deactivated member has no entry in the result
+        assertEquals(null, result["c"])
+    }
+
+    @Test
+    fun `deactivated member excluded from even expense split`() {
+        // 3 members originally; one deactivated → even split across 2 active members
+        val activeMembers = listOf(member("a", 3), member("b", 3))
+        val expenses = listOf(expense(120.0, "even"))
+        val result = CostCalculator.computeTotalShares(activeMembers, 3, 0.0, expenses)
+        // $120 / 2 = $60 each (not $40 as it would be with 3 members)
+        assertEquals(60.0, result["a"]!!, 0.001)
+        assertEquals(60.0, result["b"]!!, 0.001)
+        assertEquals(null, result["c"])
+    }
+
+    @Test
+    fun `deactivated member excluded from byNights split`() {
+        // Active: a (3 nights), b (1 night). $300 cost.
+        // Same result as if deactivated member never existed.
+        val activeMembers = listOf(member("a", 3), member("b", 1))
+        val result = CostCalculator.computeCostSplit(activeMembers, totalNights = 3, totalCost = 300.0)
+        assertEquals(250.0, result["a"]!!, 0.001)
+        assertEquals(50.0, result["b"]!!, 0.001)
+    }
+
+    @Test
+    fun `reactivated member included in cost split again`() {
+        // Member c was deactivated; on reactivation they rejoin the active list
+        val members = listOf(member("a", 3), member("b", 3), member("c", 3))
+        val result = CostCalculator.computeCostSplit(members, totalNights = 3, totalCost = 300.0)
+        assertEquals(100.0, result["a"]!!, 0.001)
+        assertEquals(100.0, result["b"]!!, 0.001)
+        assertEquals(100.0, result["c"]!!, 0.001)
+    }
+
+    @Test
+    fun `active member costs sum to full total when deactivated members excluded`() {
+        val activeMembers = listOf(member("a", 5), member("b", 3))
+        val houseCost = 400.0
+        val expenses = listOf(expense(100.0, "even"))
+        val result = CostCalculator.computeTotalShares(activeMembers, 5, houseCost, expenses)
+        assertEquals(houseCost + 100.0, result.values.sum(), 0.001)
     }
 
     @Test

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Scales the foreground logo to fill more of the adaptive icon canvas.
+     Increase the negative inset values to make the logo even larger. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:drawable="@mipmap/ic_launcher_foreground"
+        android:top="-20dp"
+        android:bottom="-20dp"
+        android:left="-20dp"
+        android:right="-20dp" />
+</layer-list>

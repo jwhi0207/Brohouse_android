@@ -72,9 +72,10 @@ class TripViewModel(
      */
     val memberCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
         combine(members, trip, expenses) { memberList, tripData, expenseList ->
+            val activeMembers = memberList.filter { !it.isDeactivated }
             val approvedExpenses = expenseList.filter { it.approved }
             CostCalculator.computeTotalShares(
-                memberList,
+                activeMembers,
                 tripData?.totalNights ?: 0,
                 tripData?.totalCost ?: 0.0,
                 approvedExpenses
@@ -86,7 +87,8 @@ class TripViewModel(
      */
     val houseCosts: kotlinx.coroutines.flow.StateFlow<Map<String, Double>> =
         combine(members, trip) { memberList, tripData ->
-            CostCalculator.computeCostSplit(memberList, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
+            val activeMembers = memberList.filter { !it.isDeactivated }
+            CostCalculator.computeCostSplit(activeMembers, tripData?.totalNights ?: 0, tripData?.totalCost ?: 0.0)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _isSaving = MutableStateFlow(false)
@@ -353,6 +355,27 @@ class TripViewModel(
         } catch (e: Exception) {
             Log.e("TripViewModel", "deleteExpense failed", e)
             _errorMessage.tryEmit("Failed to delete expense: ${e.message}")
+        }
+    }
+
+    // ─── Member deactivation ─────────────────────────────────────────────────
+
+    fun deactivateMember(uid: String) = viewModelScope.launch {
+        try {
+            val displayName = members.value.find { it.uid == uid }?.displayName ?: ""
+            repo.deactivateMember(tripId, uid, displayName)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "deactivateMember failed", e)
+            _errorMessage.tryEmit("Failed to deactivate member: ${e.message}")
+        }
+    }
+
+    fun reactivateMember(uid: String) = viewModelScope.launch {
+        try {
+            repo.reactivateMember(tripId, uid)
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "reactivateMember failed", e)
+            _errorMessage.tryEmit("Failed to reactivate member: ${e.message}")
         }
     }
 
