@@ -35,7 +35,7 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Suppress("DEPRECATION") // LocalClipboardManager — migrate to LocalClipboard + suspend when min API allows
 @Composable
-fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBack: () -> Unit) {
+fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBack: () -> Unit, onOpenDrawer: () -> Unit) {
     val trip by viewModel.trip.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
 
@@ -86,6 +86,11 @@ fun HouseDetailsScreen(viewModel: TripViewModel, isAdmin: Boolean, onNavigateBac
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
+                    }
                 },
                 actions = {
                     if (isAdmin) {

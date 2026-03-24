@@ -8,7 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.filled.*
@@ -54,8 +54,7 @@ fun TripDashboard(
     onNavigateToCarpool: () -> Unit,
     onNavigateToInvite: () -> Unit,
     onNavigateToExpenses: () -> Unit = {},
-    onNavigateBack: () -> Unit,
-    onNavigateToProfile: () -> Unit = {}
+    onOpenDrawer: () -> Unit
 ) {
     val members by viewModel.members.collectAsState()
     val trip by viewModel.trip.collectAsState()
@@ -120,25 +119,14 @@ fun TripDashboard(
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
                     }
                 },
                 actions = {
                     if (isAdmin) {
                         IconButton(onClick = onNavigateToInvite) {
                             Icon(Icons.Default.PersonAdd, contentDescription = "Invite People")
-                        }
-                    }
-                    IconButton(onClick = onNavigateToProfile) {
-                        if (currentMember != null) {
-                            AvatarView(
-                                seed = currentMember.avatarSeed,
-                                name = currentMember.displayName,
-                                size = 34.dp
-                            )
-                        } else {
-                            Icon(Icons.Default.AccountCircle, contentDescription = "Profile")
                         }
                     }
                 },

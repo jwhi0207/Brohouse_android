@@ -98,7 +98,8 @@ fun BrohouseApp() {
                 viewModel = tripViewModel,
                 isAdmin = isAdmin,
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToProfile = { navController.navigate("profile") }
+                onNavigateToProfile = { navController.navigate("profile") },
+                onSignOut = { authViewModel.signOut() }
             )
         }
 

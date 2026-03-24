@@ -34,7 +34,8 @@ import java.util.*
 @Composable
 fun CarpoolScreen(
     viewModel: TripViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOpenDrawer: () -> Unit
 ) {
     val rides by viewModel.rides.collectAsState()
     val rideRequests by viewModel.rideRequests.collectAsState()
@@ -53,6 +54,11 @@ fun CarpoolScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Carpool", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background
                 )

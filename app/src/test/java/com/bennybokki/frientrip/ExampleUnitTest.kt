@@ -1,4 +1,4 @@
-package com.thiccbokki.brohouse
+package com.bennybokki.frientrip
 
 import org.junit.Test
 

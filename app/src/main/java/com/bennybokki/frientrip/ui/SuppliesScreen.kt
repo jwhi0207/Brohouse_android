@@ -94,7 +94,8 @@ val QUICK_ADD_ITEMS = listOf(
 fun SuppliesScreen(
     viewModel: TripViewModel,
     isAdmin: Boolean = false,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOpenDrawer: () -> Unit
 ) {
     val supplyItems by viewModel.supplyItems.collectAsState()
     val members by viewModel.members.collectAsState()
@@ -135,6 +136,11 @@ fun SuppliesScreen(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
+                    }
                 },
                 actions = {
                     IconButton(onClick = { /* TODO: search */ }) {
