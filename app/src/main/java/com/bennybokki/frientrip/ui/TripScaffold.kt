@@ -111,6 +111,7 @@ fun TripScaffold(
                     if (currentMember != null) {
                         AvatarView(
                             seed = currentMember.avatarSeed,
+                            colorIndex = currentMember.avatarColor,
                             name = currentMember.displayName,
                             size = 56.dp
                         )

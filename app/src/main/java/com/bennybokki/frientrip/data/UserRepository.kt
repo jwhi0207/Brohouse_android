@@ -34,6 +34,7 @@ class UserRepository(
             "displayName" to displayName,
             "email" to email,
             "avatarSeed" to Random.nextLong(),
+            "avatarColor" to 0,
             "role" to roleForEmail(email)
         )
         usersCollection.document(uid).set(profile, SetOptions.merge()).await()
@@ -53,17 +54,16 @@ class UserRepository(
     }
 
     /**
-     * Update display name and avatar color index for a user.
+     * Update display name, avatar seed, and avatar color for a user.
      * Propagates the change to all trip member sub-documents where this user appears.
      */
-    suspend fun updateProfile(uid: String, displayName: String, colorIndex: Int) {
-        val colorSeed = colorIndex.toLong()
-
-        // 1. Update the user's own profile doc (merge in case doc doesn't exist yet)
+    suspend fun updateProfile(uid: String, displayName: String, avatarSeed: Long, avatarColor: Int) {
+        // 1. Update the user's own profile doc
         usersCollection.document(uid).set(
             mapOf(
                 "displayName" to displayName,
-                "avatarSeed" to colorSeed
+                "avatarSeed" to avatarSeed,
+                "avatarColor" to avatarColor
             ),
             SetOptions.merge()
         ).await()
@@ -86,7 +86,8 @@ class UserRepository(
                     memberRef,
                     mapOf(
                         "displayName" to displayName,
-                        "avatarSeed" to colorSeed
+                        "avatarSeed" to avatarSeed,
+                        "avatarColor" to avatarColor
                     ),
                     SetOptions.merge()
                 )
@@ -103,6 +104,7 @@ class UserRepository(
                         displayName = snap.getString("displayName") ?: "",
                         email = snap.getString("email") ?: "",
                         avatarSeed = snap.getLong("avatarSeed") ?: 0L,
+                        avatarColor = snap.getLong("avatarColor")?.toInt() ?: 0,
                         role = snap.getString("role") ?: "user"
                     )
                 )
@@ -114,7 +116,13 @@ class UserRepository(
     }
 
     /** On login/register, check if this user's email has any pending trip invites and accept them. */
-    suspend fun checkAndAcceptPendingInvites(email: String, uid: String, displayName: String, avatarSeed: Long) {
+    suspend fun checkAndAcceptPendingInvites(
+        email: String,
+        uid: String,
+        displayName: String,
+        avatarSeed: Long,
+        avatarColor: Int = 0
+    ) {
         val normalizedEmail = email.trim().lowercase()
         val trips = tripsCollection
             .whereArrayContains("pendingInviteEmails", normalizedEmail)
@@ -147,6 +155,7 @@ class UserRepository(
                         "displayName" to displayName,
                         "email" to email,
                         "avatarSeed" to avatarSeed,
+                        "avatarColor" to avatarColor,
                         "nightsStayed" to 0,
                         "amountPaid" to 0.0
                     )

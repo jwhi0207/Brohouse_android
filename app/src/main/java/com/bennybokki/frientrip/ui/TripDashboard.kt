@@ -773,7 +773,7 @@ fun MemberRowView(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarView(seed = member.avatarSeed, name = member.displayName)
+        AvatarView(seed = member.avatarSeed, colorIndex = member.avatarColor, name = member.displayName)
         Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {

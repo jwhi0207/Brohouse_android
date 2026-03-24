@@ -58,7 +58,8 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
             val displayName = userDoc.getString("displayName") ?: user.displayName ?: "Unknown"
             val email = user.email ?: ""
             val avatarSeed = userDoc.getLong("avatarSeed") ?: 0L
-            tripRepo.joinTripByCode(trip.id, uid, displayName, email, avatarSeed)
+            val avatarColor = userDoc.getLong("avatarColor")?.toInt() ?: 0
+            tripRepo.joinTripByCode(trip.id, uid, displayName, email, avatarSeed, avatarColor)
             _joinCodeSuccess.value = true
         } catch (e: IllegalStateException) {
             _joinCodeError.value = e.message
@@ -104,12 +105,14 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
             val displayName = userDoc.getString("displayName") ?: user.displayName ?: "Unknown"
             val email = user.email ?: ""
             val avatarSeed = userDoc.getLong("avatarSeed") ?: 0L
+            val avatarColor = userDoc.getLong("avatarColor")?.toInt() ?: 0
             tripRepo.createTrip(
                 name = name,
                 ownerId = user.uid,
                 ownerDisplayName = displayName,
                 ownerEmail = email,
-                ownerAvatarSeed = avatarSeed
+                ownerAvatarSeed = avatarSeed,
+                ownerAvatarColor = avatarColor
             )
         } catch (e: Exception) {
             Log.e("TripListViewModel", "createTrip failed: ${e.message}", e)

@@ -74,6 +74,7 @@ fun ExpensesScreen(
                         IconButton(onClick = {}) {
                             AvatarView(
                                 seed = currentMember.avatarSeed,
+                                colorIndex = currentMember.avatarColor,
                                 name = currentMember.displayName,
                                 size = 34.dp
                             )

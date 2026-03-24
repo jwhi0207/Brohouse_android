@@ -43,13 +43,13 @@ class ProfileViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun saveProfile(displayName: String, colorIndex: Int) = viewModelScope.launch {
+    fun saveProfile(displayName: String, avatarSeed: Long, avatarColor: Int) = viewModelScope.launch {
         val uid = currentUid
         if (uid.isEmpty() || displayName.isBlank()) return@launch
         _isSaving.value = true
         try {
             _saveError.value = null
-            userRepo.updateProfile(uid, displayName.trim(), colorIndex)
+            userRepo.updateProfile(uid, displayName.trim(), avatarSeed, avatarColor)
             _saveComplete.emit(Unit)
         } catch (e: Exception) {
             Log.e("ProfileViewModel", "Save failed: ${e.message}", e)

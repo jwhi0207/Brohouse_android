@@ -41,7 +41,8 @@ class TripRepository(
         ownerId: String,
         ownerDisplayName: String,
         ownerEmail: String,
-        ownerAvatarSeed: Long
+        ownerAvatarSeed: Long,
+        ownerAvatarColor: Int = 0
     ): String {
         val tripRef = tripsCollection.document()
         val tripId = tripRef.id
@@ -63,6 +64,7 @@ class TripRepository(
             "displayName" to ownerDisplayName,
             "email" to ownerEmail,
             "avatarSeed" to ownerAvatarSeed,
+            "avatarColor" to ownerAvatarColor,
             "nightsStayed" to 0,
             "amountPaid" to 0.0
         )
@@ -140,10 +142,12 @@ class TripRepository(
                         displayName = doc.getString("displayName") ?: "",
                         email = doc.getString("email") ?: "",
                         avatarSeed = doc.getLong("avatarSeed") ?: 0L,
+                        avatarColor = doc.getLong("avatarColor")?.toInt() ?: 0,
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
                         amountPaid = doc.getDouble("amountPaid") ?: 0.0,
                         pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
-                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none"
+                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none",
+                        status = doc.getString("status") ?: "active"
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -528,7 +532,7 @@ class TripRepository(
         )
     }
 
-    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long) {
+    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long, avatarColor: Int = 0) {
         val tripRef = tripsCollection.document(tripId)
         val tripDoc = tripRef.get().await()
         val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -543,6 +547,7 @@ class TripRepository(
                     "displayName" to displayName,
                     "email" to email,
                     "avatarSeed" to avatarSeed,
+                    "avatarColor" to avatarColor,
                     "nightsStayed" to 0,
                     "amountPaid" to 0.0
                 )

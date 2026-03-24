@@ -38,6 +38,7 @@ fun ProfileScreen(
 
     var nameText by remember { mutableStateOf("") }
     var selectedColor by remember { mutableIntStateOf(0) }
+    var selectedSeed by remember { mutableLongStateOf(AVATAR_SEEDS[0]) }
     var initialized by remember { mutableStateOf(false) }
 
     LaunchedEffect(saveError) {
@@ -51,7 +52,8 @@ fun ProfileScreen(
         val p = profile
         if (!initialized && p != null) {
             nameText = p.displayName
-            selectedColor = (p.avatarSeed % 10L).toInt().let { if (it < 0) it + 10 else it }
+            selectedColor = p.avatarColor.coerceIn(0, AVATAR_COLORS.lastIndex)
+            selectedSeed = if (p.avatarSeed in AVATAR_SEEDS) p.avatarSeed else AVATAR_SEEDS[0]
             initialized = true
         }
     }
@@ -87,7 +89,7 @@ fun ProfileScreen(
                         )
                     } else {
                         Button(
-                            onClick = { viewModel.saveProfile(nameText, selectedColor) },
+                            onClick = { viewModel.saveProfile(nameText, selectedSeed, selectedColor) },
                             enabled = canSave,
                             shape = CircleShape,
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
@@ -113,10 +115,52 @@ fun ProfileScreen(
         ) {
             // ── Avatar preview ────────────────────────────────────────────────
             AvatarView(
-                seed = selectedColor.toLong(),
+                seed = selectedSeed,
+                colorIndex = selectedColor,
                 name = nameText,
                 size = 96.dp
             )
+
+            // ── Avatar picker ─────────────────────────────────────────────────
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Choose your avatar",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                AVATAR_SEEDS.chunked(4).forEach { rowSeeds ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        rowSeeds.forEach { seed ->
+                            val isSelected = selectedSeed == seed
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .border(
+                                        width = 3.dp,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                else Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .clickable { selectedSeed = seed }
+                            ) {
+                                AvatarView(
+                                    seed = seed,
+                                    colorIndex = selectedColor,
+                                    name = "",
+                                    size = 56.dp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // ── Color picker ──────────────────────────────────────────────────
             Column(
