@@ -292,6 +292,7 @@ fun TripScaffold(
                 }
                 composable("trip_history") {
                     TripHistoryScreen(
+                        viewModel = viewModel,
                         onNavigateBack = { innerNav.popBackStack() }
                     )
                 }
