@@ -76,6 +76,7 @@ class TripCreationTest {
         assertEquals("Beach Weekend", trip["name"])
         assertEquals("uid_owner", trip["ownerId"])
         assertEquals(listOf("uid_owner"), trip["memberIds"])
+        assertEquals(emptyList<String>(), trip["deactivatedMemberIds"])
         assertEquals(emptyList<String>(), trip["pendingInviteEmails"])
         assertEquals(0, trip["totalNights"])
         assertEquals(0.0, trip["totalCost"])

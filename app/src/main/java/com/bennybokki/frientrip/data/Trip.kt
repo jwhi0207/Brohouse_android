@@ -12,6 +12,7 @@ data class Trip(
     val checkInMillis: Long = 0L,
     val checkOutMillis: Long = 0L,
     val memberIds: List<String> = emptyList(),
+    val deactivatedMemberIds: List<String> = emptyList(),
     val pendingInviteEmails: List<String> = emptyList(),
     val inviteCode: String? = null,
     val inviteCodeEnabled: Boolean = true

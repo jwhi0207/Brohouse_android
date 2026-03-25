@@ -54,6 +54,7 @@ class TripRepository(
             "totalNights" to 0,
             "totalCost" to 0.0,
             "memberIds" to listOf(ownerId),
+            "deactivatedMemberIds" to emptyList<String>(),
             "pendingInviteEmails" to emptyList<String>(),
             "inviteCode" to generateInviteCode(),
             "inviteCodeEnabled" to true
@@ -90,6 +91,7 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
                         inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
@@ -116,6 +118,7 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
                         inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
@@ -143,7 +146,8 @@ class TripRepository(
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
                         amountPaid = doc.getDouble("amountPaid") ?: 0.0,
                         pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
-                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none"
+                        pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none",
+                        status = doc.getString("status") ?: "active"
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -275,6 +279,123 @@ class TripRepository(
                 }
             awaitClose { listener.remove() }
         }
+
+    // ─── Member deactivation ─────────────────────────────────────────────────
+
+    /**
+     * Removes [uid] from the trip's memberIds (revoking access), marks the
+     * member doc with status="deactivated", and performs cleanup:
+     * - Unclears all supplies claimed by the user
+     * - Deletes the user's ride request (if any)
+     * - Removes the user from any ride they are a passenger on
+     * - Deletes any ride the user is driving and moves passengers to "Need a Ride"
+     *
+     * The member doc is preserved so ManageGroupScreen can list and reactivate them.
+     */
+    suspend fun deactivateMember(tripId: String, uid: String, displayName: String) {
+        val tripRef = tripsCollection.document(tripId)
+        val memberRef = tripRef.collection("members").document(uid)
+
+        // Pre-fetch data needed for cleanup
+        val suppliesSnap = tripRef.collection("supplies").get().await()
+        val ridesSnap = tripRef.collection("rides").get().await()
+        val rideRequestSnap = tripRef.collection("rideRequests").document(uid).get().await()
+
+        val claimedSupplyDocs = suppliesSnap.documents.filter { doc ->
+            (doc.get("claimedByUids") as? List<*>)?.contains(uid) == true
+        }
+        val drivenRideDocs = ridesSnap.documents.filter { doc ->
+            doc.getString("driverUid") == uid
+        }
+        val passengerRideDocs = ridesSnap.documents.filter { doc ->
+            (doc.get("passengerUids") as? List<*>)?.contains(uid) == true &&
+                doc.getString("driverUid") != uid
+        }
+
+        db.runBatch { batch ->
+            // Deactivate membership
+            batch.update(
+                tripRef,
+                mapOf(
+                    "memberIds" to FieldValue.arrayRemove(uid),
+                    "deactivatedMemberIds" to FieldValue.arrayUnion(uid)
+                )
+            )
+            batch.update(memberRef, "status", "deactivated")
+
+            // Unclaim all supplies this user had claimed
+            for (doc in claimedSupplyDocs) {
+                val item = SupplyItem(
+                    id = doc.id,
+                    name = doc.getString("name") ?: "",
+                    claimedByUids = (doc.get("claimedByUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                    claimedByName = doc.getString("claimedByName"),
+                    quantity = doc.getString("quantity") ?: ""
+                )
+                val updated = item.removeClaim(uid, displayName)
+                batch.update(
+                    doc.reference,
+                    mapOf(
+                        "claimedByUids" to updated.claimedByUids,
+                        "claimedByName" to updated.claimedByName,
+                        "quantity" to updated.quantity
+                    )
+                )
+            }
+
+            // Delete the user's ride request if present
+            if (rideRequestSnap.exists()) batch.delete(rideRequestSnap.reference)
+
+            // Remove user from rides where they are a passenger (index-based to keep parallel arrays in sync)
+            for (doc in passengerRideDocs) {
+                val currentUids = (doc.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val currentNames = (doc.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val idx = currentUids.indexOf(uid)
+                val updatedUids = currentUids.filter { it != uid }
+                val updatedNames = if (idx >= 0) currentNames.filterIndexed { i, _ -> i != idx } else currentNames
+                batch.update(
+                    doc.reference,
+                    mapOf(
+                        "passengerUids" to updatedUids,
+                        "passengerNames" to updatedNames
+                    )
+                )
+            }
+
+            // Delete driven rides and move each displaced passenger to "Need a Ride"
+            for (rideDoc in drivenRideDocs) {
+                batch.delete(rideDoc.reference)
+                val passengerUids = (rideDoc.get("passengerUids") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                val passengerNames = (rideDoc.get("passengerNames") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+                passengerUids.forEachIndexed { index, passengerUid ->
+                    val name = passengerNames.getOrNull(index) ?: ""
+                    batch.set(
+                        tripRef.collection("rideRequests").document(passengerUid),
+                        mapOf("uid" to passengerUid, "displayName" to name, "notes" to "")
+                    )
+                }
+            }
+        }.await()
+    }
+
+    /**
+     * Adds [uid] back to memberIds and clears the deactivated status,
+     * restoring full trip access.
+     */
+    suspend fun reactivateMember(tripId: String, uid: String) {
+        val tripRef = tripsCollection.document(tripId)
+        val memberRef = tripRef.collection("members").document(uid)
+        db.runBatch { batch ->
+            batch.update(
+                tripRef,
+                mapOf(
+                    "memberIds" to FieldValue.arrayUnion(uid),
+                    "deactivatedMemberIds" to FieldValue.arrayRemove(uid)
+                )
+            )
+            batch.update(memberRef, "status", "active")
+        }.await()
+    }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────
 
@@ -472,6 +593,7 @@ class TripRepository(
                         checkInMillis = doc.getLong("checkInMillis") ?: 0L,
                         checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
                         memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
                         inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
@@ -522,6 +644,7 @@ class TripRepository(
             checkInMillis = doc.getLong("checkInMillis") ?: 0L,
             checkOutMillis = doc.getLong("checkOutMillis") ?: 0L,
             memberIds = (doc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+            deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
             pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
             inviteCode = doc.getString("inviteCode"),
             inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
@@ -533,6 +656,12 @@ class TripRepository(
         val tripDoc = tripRef.get().await()
         val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
         if (uid in currentMembers) throw IllegalStateException("Already a member of this trip")
+
+        // Deactivated members can only be restored by a trip owner, not via invite code
+        val memberDoc = tripRef.collection("members").document(uid).get().await()
+        if (memberDoc.exists() && memberDoc.getString("status") == "deactivated") {
+            throw IllegalStateException("Your access to this trip has been revoked. Contact the trip owner.")
+        }
 
         db.runBatch { batch ->
             batch.update(tripRef, "memberIds", currentMembers + uid)

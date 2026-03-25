@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,9 +31,11 @@ import com.bennybokki.frientrip.TripViewModel
 fun InviteScreen(
     viewModel: TripViewModel,
     isAdmin: Boolean,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOpenDrawer: () -> Unit
 ) {
-    val members by viewModel.members.collectAsState()
+    val allMembers by viewModel.members.collectAsState()
+    val members = allMembers.filter { !it.isDeactivated }
     val trip by viewModel.trip.collectAsState()
     val pendingEmails = trip?.pendingInviteEmails ?: emptyList()
     val ownerId = trip?.ownerId ?: ""
@@ -54,6 +57,11 @@ fun InviteScreen(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onOpenDrawer) {
+                        Icon(Icons.Default.Menu, contentDescription = "Open menu")
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
