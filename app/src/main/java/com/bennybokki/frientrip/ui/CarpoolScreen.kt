@@ -27,6 +27,10 @@ import com.bennybokki.frientrip.TripViewModel
 import com.bennybokki.frientrip.data.Ride
 import com.bennybokki.frientrip.data.RideRequest
 import com.bennybokki.frientrip.data.TripMember
+import com.bennybokki.frientrip.ui.theme.LocalIsDarkTheme
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.StatusPaidLight
+import com.bennybokki.frientrip.ui.theme.VividCard
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -261,10 +265,8 @@ private fun RideCard(
     val fmt = SimpleDateFormat("MMM d, h:mm a", Locale.US)
     var showMenu by remember { mutableStateOf(false) }
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    VividCard(
+        accentIndex = 0,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -359,7 +361,7 @@ private fun RideCard(
             ) {
                 Text("Seat Availability", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                 if (ride.isFull) {
-                    Text("FULL", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D32))
+                    Text("FULL", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = if (LocalIsDarkTheme.current) NeonGreen else StatusPaidLight)
                 } else {
                     Text(
                         "${ride.passengerUids.size} / ${ride.totalSeats} Occupied",
@@ -372,7 +374,7 @@ private fun RideCard(
             LinearProgressIndicator(
                 progress = { fraction },
                 modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
-                color = if (ride.isFull) Color(0xFF2E7D32) else MaterialTheme.colorScheme.primary,
+                color = if (ride.isFull) if (LocalIsDarkTheme.current) NeonGreen else StatusPaidLight else MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceVariant
             )
             if (!ride.isFull) {
@@ -494,10 +496,9 @@ private fun RideRequestRow(
 ) {
     val member = members.find { it.uid == request.uid }
 
-    Card(
+    VividCard(
+        accentIndex = 2,
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(

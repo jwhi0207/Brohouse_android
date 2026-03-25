@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.bennybokki.frientrip.TripViewModel
 import com.bennybokki.frientrip.data.TripMember
 import com.bennybokki.frientrip.data.UserRepository
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.VividCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,12 +83,8 @@ fun ManageGroupScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    VividCard(
+                        accentIndex = 0,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -158,7 +156,7 @@ fun ManageGroupScreen(
                         pendingReactivate = null
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2E7D32)
+                        containerColor = NeonGreen
                     )
                 ) {
                     Text("Reactivate")
@@ -238,7 +236,7 @@ private fun ManageGroupMemberRow(
                 Button(
                     onClick = onReactivate,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2E7D32),
+                        containerColor = NeonGreen,
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)

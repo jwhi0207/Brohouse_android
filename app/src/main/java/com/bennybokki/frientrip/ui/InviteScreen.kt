@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bennybokki.frientrip.TripViewModel
+import com.bennybokki.frientrip.ui.theme.VividCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,14 +81,12 @@ fun InviteScreen(
             // Invite Code section — visible to all members
             if (inviteCode != null && inviteCodeEnabled) {
                 item {
-                    Card(
+                    VividCard(
+                        accentIndex = 4,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        )
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -138,14 +137,12 @@ fun InviteScreen(
             // Admin invite code controls
             if (isAdmin) {
                 item {
-                    Card(
+                    VividCard(
+                        accentIndex = 3,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f)
-                        )
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
@@ -189,18 +186,12 @@ fun InviteScreen(
             // Admin email invite section
             if (isAdmin) {
                 item {
-                    Card(
+                    VividCard(
+                        accentIndex = 1,
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
-                        )
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Text(
@@ -260,18 +251,12 @@ fun InviteScreen(
                     )
                 }
                 items(pendingEmails) { email ->
-                    Card(
+                    VividCard(
+                        accentIndex = 2,
+                        shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 3.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            MaterialTheme.colorScheme.outlineVariant
-                        )
+                            .padding(horizontal = 16.dp, vertical = 3.dp)
                     ) {
                         Row(
                             modifier = Modifier

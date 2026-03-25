@@ -12,24 +12,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import com.bennybokki.frientrip.ui.theme.ElectricCyan
+import com.bennybokki.frientrip.ui.theme.ElectricLime
+import com.bennybokki.frientrip.ui.theme.MintGreen
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.NeonPurple
+import com.bennybokki.frientrip.ui.theme.VividPink
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 
-/** 10 distinct avatar background colors — selected independently from the pixel art. */
+/** 10 distinct avatar background colors — Vivid Pulse palette. */
 val AVATAR_COLORS = listOf(
-    Color(0xFF5C6BC0), // Indigo
-    Color(0xFF42A5F5), // Blue
-    Color(0xFF26C6DA), // Cyan
-    Color(0xFF26A69A), // Teal
-    Color(0xFF66BB6A), // Green
-    Color(0xFFFFA726), // Orange
-    Color(0xFFEF5350), // Red
-    Color(0xFFEC407A), // Pink
-    Color(0xFFAB47BC), // Purple
-    Color(0xFF8D6E63), // Brown
+    NeonPurple,            // Purple
+    ElectricCyan,          // Cyan
+    MintGreen,             // Mint
+    NeonGreen,             // Green
+    ElectricLime,          // Lime
+    VividPink,             // Pink
+    Color(0xFFFF4D6A),     // Light Pink
+    Color(0xFFE040FB),     // Light Purple
+    Color(0xFFD050F0),     // Mid Purple
+    Color(0xFF8D6E63),     // Brown (variety)
 )
 
 /** 12 fixed DiceBear seeds — each produces a distinct pixel art character. */

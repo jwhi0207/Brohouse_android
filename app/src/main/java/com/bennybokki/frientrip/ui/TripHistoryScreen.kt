@@ -22,6 +22,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.bennybokki.frientrip.TripViewModel
 import com.bennybokki.frientrip.data.TripHistoryEvent
+import com.bennybokki.frientrip.ui.theme.ElectricCyan
+import com.bennybokki.frientrip.ui.theme.LocalIsDarkTheme
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.NeonPurple
+import com.bennybokki.frientrip.ui.theme.StatusPaidBgDark
+import com.bennybokki.frientrip.ui.theme.StatusPaidBgLight
+import com.bennybokki.frientrip.ui.theme.StatusPendingBgDark
+import com.bennybokki.frientrip.ui.theme.StatusPendingBgLight
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -46,29 +54,30 @@ fun TripHistoryScreen(
 
     val grouped = allEvents.groupBy { it.category }
 
+    val isDark = LocalIsDarkTheme.current
     val sections = listOf(
         HistorySection(
             key = "expenses",
             label = "Expenses",
             icon = Icons.Default.AttachMoney,
-            containerColor = Color(0xFFE3F2FD),
-            contentColor = Color(0xFF1565C0),
+            containerColor = if (isDark) StatusPendingBgDark else StatusPendingBgLight,
+            contentColor = ElectricCyan,
             events = grouped["expenses"]?.sortedByDescending { it.timestamp } ?: emptyList()
         ),
         HistorySection(
             key = "supplies",
             label = "Supplies",
             icon = Icons.Default.Checklist,
-            containerColor = Color(0xFFE8F5E9),
-            contentColor = Color(0xFF2E7D32),
+            containerColor = if (isDark) StatusPaidBgDark else StatusPaidBgLight,
+            contentColor = NeonGreen,
             events = grouped["supplies"]?.sortedByDescending { it.timestamp } ?: emptyList()
         ),
         HistorySection(
             key = "payments",
             label = "Payments",
             icon = Icons.Default.Payments,
-            containerColor = Color(0xFFF3E5F5),
-            contentColor = Color(0xFF6A1B9A),
+            containerColor = if (isDark) Color(0xFF1A0A2E) else Color(0xFFF3E5F5),
+            contentColor = NeonPurple,
             events = grouped["payments"]?.sortedByDescending { it.timestamp } ?: emptyList()
         )
     ).filter { it.events.isNotEmpty() }

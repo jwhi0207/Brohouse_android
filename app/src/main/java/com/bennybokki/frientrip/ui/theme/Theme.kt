@@ -6,27 +6,32 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+/** True when the app is rendering in dark mode. Read via `LocalIsDarkTheme.current`. */
+val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
 private val LightColorScheme = lightColorScheme(
-    primary             = Blue40,
-    onPrimary           = OnBlue40,
-    primaryContainer    = BlueContainer,
-    onPrimaryContainer  = OnBlueContainer,
+    primary             = Color(0xFF0090C0),
+    onPrimary           = Color.White,
+    primaryContainer    = Color(0xFFD6F2FF),
+    onPrimaryContainer  = Color(0xFF001D2B),
 
-    secondary           = BlueGrey40,
-    onSecondary         = OnBlueGrey40,
-    secondaryContainer  = BlueGreyContainer,
-    onSecondaryContainer = OnBlueGreyContainer,
+    secondary           = Color(0xFFAA00BB),
+    onSecondary         = Color.White,
+    secondaryContainer  = Color(0xFFF5D0FF),
+    onSecondaryContainer = Color(0xFF2E0036),
 
-    tertiary            = Teal40,
-    onTertiary          = OnTeal40,
-    tertiaryContainer   = TealContainer,
-    onTertiaryContainer = OnTealContainer,
+    tertiary            = Color(0xFFD41654),
+    onTertiary          = Color.White,
+    tertiaryContainer   = Color(0xFFFFD9E4),
+    onTertiaryContainer = Color(0xFF3F001D),
 
     background          = LightBackground,
     onBackground        = LightOnSurface,
@@ -44,24 +49,24 @@ private val LightColorScheme = lightColorScheme(
 
     inverseSurface      = Color(0xFF2F3033),
     inverseOnSurface    = Color(0xFFF1F0F4),
-    inversePrimary      = Blue80,
+    inversePrimary      = ElectricCyan,
 )
 
 private val DarkColorScheme = darkColorScheme(
-    primary             = Blue80,
-    onPrimary           = OnBlue80,
-    primaryContainer    = BlueDarkContainer,
-    onPrimaryContainer  = OnBlueDarkContainer,
+    primary             = ElectricCyan,
+    onPrimary           = Color(0xFF003544),
+    primaryContainer    = Color(0xFF004D65),
+    onPrimaryContainer  = Color(0xFFB8EAFF),
 
-    secondary           = BlueGrey80,
-    onSecondary         = OnBlueGrey80,
-    secondaryContainer  = BlueGreyDarkContainer,
-    onSecondaryContainer = OnBlueGreyDarkContainer,
+    secondary           = NeonPurple,
+    onSecondary         = Color(0xFF3F0044),
+    secondaryContainer  = Color(0xFF5A0062),
+    onSecondaryContainer = Color(0xFFF5D0FF),
 
-    tertiary            = Teal80,
-    onTertiary          = OnTeal80,
-    tertiaryContainer   = TealDarkContainer,
-    onTertiaryContainer = OnTealDarkContainer,
+    tertiary            = VividPink,
+    onTertiary          = Color(0xFF44001D),
+    tertiaryContainer   = Color(0xFF66002E),
+    onTertiaryContainer = Color(0xFFFFD9E4),
 
     background          = DarkBackground,
     onBackground        = DarkOnSurface,
@@ -79,7 +84,7 @@ private val DarkColorScheme = darkColorScheme(
 
     inverseSurface      = DarkOnSurface,
     inverseOnSurface    = DarkSurface,
-    inversePrimary      = Blue40,
+    inversePrimary      = Color(0xFF0090C0),
 )
 
 @Composable
@@ -99,9 +104,11 @@ fun FrientripTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalIsDarkTheme provides darkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }
