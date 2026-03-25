@@ -178,7 +178,6 @@ class TripRepository(
                 "pendingPaymentStatus" to "pending"
             )
         ).await()
-        logPaymentEvent(tripId, uid, "submitted", amount, actorName)
     }
 
     suspend fun approvePendingPayment(tripId: String, member: TripMember, actorName: String) {
@@ -191,7 +190,6 @@ class TripRepository(
                     "pendingPaymentStatus" to "none"
                 )
             ).await()
-        logPaymentEvent(tripId, member.uid, "approved", member.pendingPaymentAmount, actorName)
     }
 
     suspend fun rejectPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
@@ -202,86 +200,7 @@ class TripRepository(
                     "pendingPaymentStatus" to "rejected"
                 )
             ).await()
-        logPaymentEvent(tripId, uid, "rejected", amount, actorName)
     }
-
-    suspend fun revertApprovedPayment(
-        tripId: String,
-        uid: String,
-        newAmountPaid: Double,
-        eventAmount: Double,
-        actorName: String
-    ) {
-        tripsCollection.document(tripId).collection("members").document(uid)
-            .update(
-                mapOf(
-                    "amountPaid" to newAmountPaid,
-                    "pendingPaymentAmount" to eventAmount,
-                    "pendingPaymentStatus" to "pending"
-                )
-            ).await()
-        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
-    }
-
-    suspend fun revertRejectedPayment(
-        tripId: String,
-        uid: String,
-        eventAmount: Double,
-        actorName: String
-    ) {
-        tripsCollection.document(tripId).collection("members").document(uid)
-            .update(
-                mapOf(
-                    "pendingPaymentAmount" to eventAmount,
-                    "pendingPaymentStatus" to "pending"
-                )
-            ).await()
-        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
-    }
-
-    private suspend fun logPaymentEvent(
-        tripId: String,
-        uid: String,
-        type: String,
-        amount: Double,
-        actorName: String
-    ) {
-        val data = mapOf(
-            "type" to type,
-            "amount" to amount,
-            "actorName" to actorName,
-            "timestamp" to System.currentTimeMillis()
-        )
-        tripsCollection.document(tripId)
-            .collection("members").document(uid)
-            .collection("paymentHistory")
-            .add(data).await()
-    }
-
-    fun getPaymentHistory(tripId: String, uid: String): kotlinx.coroutines.flow.Flow<List<PaymentEvent>> =
-        callbackFlow {
-            val listener = tripsCollection.document(tripId)
-                .collection("members").document(uid)
-                .collection("paymentHistory")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .addSnapshotListener { snap, error ->
-                    if (error != null) {
-                        Log.e("TripRepository", "getPaymentHistory failed", error)
-                        return@addSnapshotListener
-                    }
-                    val events = snap?.documents?.map { doc ->
-                        PaymentEvent(
-                            id = doc.id,
-                            type = doc.getString("type") ?: "",
-                            amount = doc.getDouble("amount") ?: 0.0,
-                            actorName = doc.getString("actorName") ?: "",
-                            timestamp = doc.getLong("timestamp") ?: 0L
-                        )
-                    } ?: emptyList()
-                    trySend(events)
-                }
-            awaitClose { listener.remove() }
-        }
 
     // ─── Member deactivation ─────────────────────────────────────────────────
 
@@ -654,7 +573,7 @@ class TripRepository(
         )
     }
 
-    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long) {
+    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long, avatarColor: Int = 0) {
         val tripRef = tripsCollection.document(tripId)
         val tripDoc = tripRef.get().await()
         val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -675,6 +594,7 @@ class TripRepository(
                     "displayName" to displayName,
                     "email" to email,
                     "avatarSeed" to avatarSeed,
+                    "avatarColor" to avatarColor,
                     "nightsStayed" to 0,
                     "amountPaid" to 0.0
                 )
