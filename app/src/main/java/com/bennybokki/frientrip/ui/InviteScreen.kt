@@ -335,6 +335,7 @@ fun InviteScreen(
                 ) {
                     AvatarView(
                         seed = member.avatarSeed,
+                        colorIndex = member.avatarColor,
                         name = member.displayName,
                         size = 48.dp
                     )

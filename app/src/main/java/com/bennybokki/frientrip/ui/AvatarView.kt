@@ -11,13 +11,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
-/** 10 distinct avatar background colors — index stored as avatarSeed in Firestore. */
+/** 10 distinct avatar background colors — selected independently from the pixel art. */
 val AVATAR_COLORS = listOf(
     Color(0xFF5C6BC0), // Indigo
     Color(0xFF42A5F5), // Blue
@@ -31,16 +32,19 @@ val AVATAR_COLORS = listOf(
     Color(0xFF8D6E63), // Brown
 )
 
+/** 12 fixed DiceBear seeds — each produces a distinct pixel art character. */
+val AVATAR_SEEDS = listOf(1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L)
+
 /**
- * Circular avatar showing the first letter of [name] on a solid color background.
+ * Circular avatar using DiceBear Pixel Art style.
  *
- * The color is chosen by [seed] % 10 so existing random seeds map gracefully to
- * a deterministic color, and newly chosen palette indices (0–9) map directly.
+ * [seed] determines the pixel art character (passed to DiceBear).
+ * [colorIndex] determines the background color (0–9 from [AVATAR_COLORS]).
+ * The colored initial is shown as a fallback while the image loads.
  */
 @Composable
-fun AvatarView(seed: Long, name: String = "", size: Dp = 52.dp) {
-    val colorIndex = (seed % 10L).toInt().let { if (it < 0) it + 10 else it }
-    val bgColor = AVATAR_COLORS[colorIndex]
+fun AvatarView(seed: Long, colorIndex: Int, name: String = "", size: Dp = 52.dp) {
+    val bgColor = AVATAR_COLORS[colorIndex.coerceIn(0, AVATAR_COLORS.lastIndex)]
     val initial = name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     val fontSize = with(LocalDensity.current) { (size.toPx() * 0.42f).toSp() }
 
@@ -52,12 +56,21 @@ fun AvatarView(seed: Long, name: String = "", size: Dp = 52.dp) {
             .border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
+        // Fallback initial shown while image loads or on error
         Text(
             text = initial,
             color = Color.White,
             fontSize = fontSize,
             fontWeight = FontWeight.Bold,
             lineHeight = fontSize,
+        )
+        AsyncImage(
+            model = "https://api.dicebear.com/9.x/pixel-art/png?seed=$seed&size=128",
+            contentDescription = name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(size)
+                .clip(CircleShape)
         )
     }
 }

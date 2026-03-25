@@ -72,7 +72,6 @@ fun TripDashboard(
     var addPaymentMember by remember { mutableStateOf<TripMember?>(null) }
     var payExpensesMember by remember { mutableStateOf<TripMember?>(null) }
     var verifyPaymentMember by remember { mutableStateOf<TripMember?>(null) }
-    var paymentHistoryMember by remember { mutableStateOf<TripMember?>(null) }
     var showRenameDialog by remember { mutableStateOf(false) }
 
     val houseDetails = trip?.let {
@@ -320,8 +319,7 @@ fun TripDashboard(
                                 onEditNights = { editNightsMember = member },
                                 onAddPayment = { addPaymentMember = member },
                                 onPayExpenses = { payExpensesMember = member },
-                                onVerifyPayment = { verifyPaymentMember = member },
-                                onPaymentHistory = { paymentHistoryMember = member }
+                                onVerifyPayment = { verifyPaymentMember = member }
                             )
                             if (index < activeMembers.lastIndex) {
                                 HorizontalDivider(
@@ -393,23 +391,6 @@ fun TripDashboard(
                 viewModel.rejectPendingPayment(member)
                 verifyPaymentMember = null
             }
-        )
-    }
-
-    paymentHistoryMember?.let { member ->
-        val historyFlow = remember(member.uid) { viewModel.getPaymentHistory(member.uid) }
-        val history by historyFlow.collectAsState(initial = emptyList())
-        PaymentHistorySheet(
-            memberName = member.displayName,
-            events = history,
-            isAdmin = isAdmin,
-            onRevertEvent = { event ->
-                when (event.type) {
-                    "approved" -> viewModel.revertApprovedPayment(member.uid, event)
-                    "rejected" -> viewModel.revertRejectedPayment(member.uid, event)
-                }
-            },
-            onDismiss = { paymentHistoryMember = null }
         )
     }
 
@@ -754,8 +735,7 @@ fun MemberRowView(
     onEditNights: () -> Unit,
     onAddPayment: () -> Unit,
     onPayExpenses: () -> Unit = {},
-    onVerifyPayment: () -> Unit = {},
-    onPaymentHistory: () -> Unit = {}
+    onVerifyPayment: () -> Unit = {}
 ) {
     var showMenu by remember { mutableStateOf(false) }
     val remaining = computedOwed - member.amountPaid
@@ -765,7 +745,6 @@ fun MemberRowView(
     val canPayExpenses = isCurrentUser || isAdmin
     val hasPendingPayment = member.pendingPaymentStatus == "pending"
     val canVerifyPayment = isAdmin && hasPendingPayment
-    val canViewHistory = isCurrentUser || isAdmin
     val currency = NumberFormat.getCurrencyInstance(Locale.US)
 
     Row(
@@ -774,7 +753,7 @@ fun MemberRowView(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AvatarView(seed = member.avatarSeed, name = member.displayName)
+        AvatarView(seed = member.avatarSeed, colorIndex = member.avatarColor, name = member.displayName)
         Spacer(Modifier.width(14.dp))
 
         Column(modifier = Modifier.weight(1f)) {
@@ -810,7 +789,7 @@ fun MemberRowView(
             }
         }
 
-        if (canEditNights || canAddPayment || canPayExpenses || canVerifyPayment || canViewHistory) {
+        if (canEditNights || canAddPayment || canPayExpenses || canVerifyPayment) {
             Box {
                 IconButton(onClick = { showMenu = true }, modifier = Modifier.size(36.dp)) {
                     Icon(
@@ -847,13 +826,6 @@ fun MemberRowView(
                             text = { Text("Verify Payment") },
                             leadingIcon = { Icon(Icons.Filled.FactCheck, null) },
                             onClick = { showMenu = false; onVerifyPayment() }
-                        )
-                    }
-                    if (canViewHistory) {
-                        DropdownMenuItem(
-                            text = { Text("Payment History") },
-                            leadingIcon = { Icon(Icons.Filled.History, null) },
-                            onClick = { showMenu = false; onPaymentHistory() }
                         )
                     }
                 }

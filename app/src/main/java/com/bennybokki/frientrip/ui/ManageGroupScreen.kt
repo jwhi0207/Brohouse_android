@@ -192,6 +192,7 @@ private fun ManageGroupMemberRow(
         Box(modifier = Modifier.alpha(contentAlpha)) {
             AvatarView(
                 seed = member.avatarSeed,
+                colorIndex = member.avatarColor,
                 name = member.displayName,
                 size = 44.dp
             )

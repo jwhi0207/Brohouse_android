@@ -9,6 +9,7 @@ import com.bennybokki.frientrip.data.Ride
 import com.bennybokki.frientrip.data.RideRequest
 import com.bennybokki.frientrip.data.SharedExpense
 import com.bennybokki.frientrip.data.SupplyItem
+import com.bennybokki.frientrip.data.TripHistoryEvent
 import com.bennybokki.frientrip.data.TripMember
 import com.bennybokki.frientrip.data.TripRepository
 import com.google.firebase.auth.FirebaseAuth
@@ -66,6 +67,10 @@ class TripViewModel(
     val expenses = repo.getExpenses(tripId)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val history: kotlinx.coroutines.flow.StateFlow<List<TripHistoryEvent>> =
+        repo.getTripHistory(tripId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     /**
      * Maps each member's uid → their computed share of the total trip cost
      * including house cost + all approved shared expenses.
@@ -100,6 +105,16 @@ class TripViewModel(
     private val _errorMessage = MutableSharedFlow<String>(extraBufferCapacity = 1)
     val errorMessage = _errorMessage.asSharedFlow()
 
+    private fun logHistory(category: String, description: String) {
+        viewModelScope.launch {
+            try { repo.logTripHistory(tripId, category, description) }
+            catch (e: Exception) { Log.e("TripViewModel", "logHistory failed", e) }
+        }
+    }
+
+    private fun actorName() =
+        members.value.find { it.uid == currentUid }?.displayName ?: "Someone"
+
     // ─── Members ──────────────────────────────────────────────────────────────
 
     fun updateNights(member: TripMember, nights: Int) = viewModelScope.launch {
@@ -112,30 +127,19 @@ class TripViewModel(
 
     fun submitPaymentForReview(member: TripMember, amount: Double) = viewModelScope.launch {
         repo.submitPendingPayment(tripId, member.uid, amount, member.displayName)
+        logHistory("payments", "${member.displayName} submitted a $${String.format("%.2f", amount)} payment")
     }
 
     fun approvePendingPayment(member: TripMember) = viewModelScope.launch {
         val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
         repo.approvePendingPayment(tripId, member, adminName)
+        logHistory("payments", "$adminName approved ${member.displayName}'s $${String.format("%.2f", member.pendingPaymentAmount)} payment")
     }
 
     fun rejectPendingPayment(member: TripMember) = viewModelScope.launch {
         val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
         repo.rejectPendingPayment(tripId, member.uid, member.pendingPaymentAmount, adminName)
-    }
-
-    fun getPaymentHistory(uid: String) = repo.getPaymentHistory(tripId, uid)
-
-    fun revertApprovedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
-        val currentMember = members.value.find { it.uid == memberUid } ?: return@launch
-        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
-        val newAmountPaid = maxOf(0.0, currentMember.amountPaid - event.amount)
-        repo.revertApprovedPayment(tripId, memberUid, newAmountPaid, event.amount, adminName)
-    }
-
-    fun revertRejectedPayment(memberUid: String, event: com.bennybokki.frientrip.data.PaymentEvent) = viewModelScope.launch {
-        val adminName = members.value.find { it.uid == currentUid }?.displayName ?: "Trip Manager"
-        repo.revertRejectedPayment(tripId, memberUid, event.amount, adminName)
+        logHistory("payments", "$adminName rejected ${member.displayName}'s $${String.format("%.2f", member.pendingPaymentAmount)} payment")
     }
 
     // ─── Supplies ─────────────────────────────────────────────────────────────
@@ -143,6 +147,8 @@ class TripViewModel(
     fun addSupplyItem(name: String, category: String, quantity: String) = viewModelScope.launch {
         try {
             repo.addSupplyItem(tripId, name, category, quantity)
+            val qty = if (quantity.isNotBlank()) " ($quantity)" else ""
+            logHistory("supplies", "${actorName()} added $name$qty")
         } catch (e: Exception) {
             Log.e("TripViewModel", "addSupplyItem failed", e)
         }
@@ -159,6 +165,8 @@ class TripViewModel(
     fun claimSupplyItem(item: SupplyItem, member: TripMember, quantity: String = "") = viewModelScope.launch {
         try {
             repo.updateSupplyItem(tripId, item.addClaim(member, quantity))
+            val qty = if (quantity.isNotBlank()) " ($quantity)" else ""
+            logHistory("supplies", "${member.displayName} claimed ${item.name}$qty")
         } catch (e: Exception) {
             Log.e("TripViewModel", "claimSupplyItem failed", e)
         }
@@ -167,6 +175,7 @@ class TripViewModel(
     fun unclaimSupplyItem(item: SupplyItem, uid: String, displayName: String) = viewModelScope.launch {
         try {
             repo.updateSupplyItem(tripId, item.removeClaim(uid, displayName))
+            logHistory("supplies", "$displayName unclaimed ${item.name}")
         } catch (e: Exception) {
             Log.e("TripViewModel", "unclaimSupplyItem failed", e)
         }
@@ -175,6 +184,7 @@ class TripViewModel(
     fun deleteSupplyItem(item: SupplyItem) = viewModelScope.launch {
         try {
             repo.deleteSupplyItem(tripId, item.id)
+            logHistory("supplies", "${actorName()} removed ${item.name}")
         } catch (e: Exception) {
             Log.e("TripViewModel", "deleteSupplyItem failed", e)
         }
@@ -334,6 +344,7 @@ class TripViewModel(
                 createdAt = System.currentTimeMillis()
             )
             repo.addExpense(tripId, expense)
+            logHistory("expenses", "${member.displayName} submitted '$description' ($${String.format("%.2f", amount)})")
         } catch (e: Exception) {
             Log.e("TripViewModel", "submitExpense failed", e)
             _errorMessage.tryEmit("Failed to submit expense: ${e.message}")
@@ -342,16 +353,24 @@ class TripViewModel(
 
     fun approveExpense(expenseId: String) = viewModelScope.launch {
         try {
+            val expense = expenses.value.find { it.id == expenseId }
             repo.approveExpense(tripId, expenseId)
+            if (expense != null) {
+                logHistory("expenses", "${actorName()} approved '${expense.description}' ($${String.format("%.2f", expense.amount)})")
+            }
         } catch (e: Exception) {
             Log.e("TripViewModel", "approveExpense failed", e)
             _errorMessage.tryEmit("Failed to approve expense: ${e.message}")
         }
     }
 
-    fun deleteExpense(expenseId: String) = viewModelScope.launch {
+    fun deleteExpense(expenseId: String, reason: String = "removed") = viewModelScope.launch {
         try {
+            val expense = expenses.value.find { it.id == expenseId }
             repo.deleteExpense(tripId, expenseId)
+            if (expense != null) {
+                logHistory("expenses", "${actorName()} $reason '${expense.description}' ($${String.format("%.2f", expense.amount)})")
+            }
         } catch (e: Exception) {
             Log.e("TripViewModel", "deleteExpense failed", e)
             _errorMessage.tryEmit("Failed to delete expense: ${e.message}")

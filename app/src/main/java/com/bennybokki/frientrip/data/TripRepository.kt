@@ -41,7 +41,8 @@ class TripRepository(
         ownerId: String,
         ownerDisplayName: String,
         ownerEmail: String,
-        ownerAvatarSeed: Long
+        ownerAvatarSeed: Long,
+        ownerAvatarColor: Int = 0
     ): String {
         val tripRef = tripsCollection.document()
         val tripId = tripRef.id
@@ -64,6 +65,7 @@ class TripRepository(
             "displayName" to ownerDisplayName,
             "email" to ownerEmail,
             "avatarSeed" to ownerAvatarSeed,
+            "avatarColor" to ownerAvatarColor,
             "nightsStayed" to 0,
             "amountPaid" to 0.0
         )
@@ -143,6 +145,7 @@ class TripRepository(
                         displayName = doc.getString("displayName") ?: "",
                         email = doc.getString("email") ?: "",
                         avatarSeed = doc.getLong("avatarSeed") ?: 0L,
+                        avatarColor = doc.getLong("avatarColor")?.toInt() ?: 0,
                         nightsStayed = (doc.getLong("nightsStayed") ?: 0L).toInt(),
                         amountPaid = doc.getDouble("amountPaid") ?: 0.0,
                         pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
@@ -175,7 +178,6 @@ class TripRepository(
                 "pendingPaymentStatus" to "pending"
             )
         ).await()
-        logPaymentEvent(tripId, uid, "submitted", amount, actorName)
     }
 
     suspend fun approvePendingPayment(tripId: String, member: TripMember, actorName: String) {
@@ -188,7 +190,6 @@ class TripRepository(
                     "pendingPaymentStatus" to "none"
                 )
             ).await()
-        logPaymentEvent(tripId, member.uid, "approved", member.pendingPaymentAmount, actorName)
     }
 
     suspend fun rejectPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
@@ -199,86 +200,7 @@ class TripRepository(
                     "pendingPaymentStatus" to "rejected"
                 )
             ).await()
-        logPaymentEvent(tripId, uid, "rejected", amount, actorName)
     }
-
-    suspend fun revertApprovedPayment(
-        tripId: String,
-        uid: String,
-        newAmountPaid: Double,
-        eventAmount: Double,
-        actorName: String
-    ) {
-        tripsCollection.document(tripId).collection("members").document(uid)
-            .update(
-                mapOf(
-                    "amountPaid" to newAmountPaid,
-                    "pendingPaymentAmount" to eventAmount,
-                    "pendingPaymentStatus" to "pending"
-                )
-            ).await()
-        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
-    }
-
-    suspend fun revertRejectedPayment(
-        tripId: String,
-        uid: String,
-        eventAmount: Double,
-        actorName: String
-    ) {
-        tripsCollection.document(tripId).collection("members").document(uid)
-            .update(
-                mapOf(
-                    "pendingPaymentAmount" to eventAmount,
-                    "pendingPaymentStatus" to "pending"
-                )
-            ).await()
-        logPaymentEvent(tripId, uid, "reverted", eventAmount, actorName)
-    }
-
-    private suspend fun logPaymentEvent(
-        tripId: String,
-        uid: String,
-        type: String,
-        amount: Double,
-        actorName: String
-    ) {
-        val data = mapOf(
-            "type" to type,
-            "amount" to amount,
-            "actorName" to actorName,
-            "timestamp" to System.currentTimeMillis()
-        )
-        tripsCollection.document(tripId)
-            .collection("members").document(uid)
-            .collection("paymentHistory")
-            .add(data).await()
-    }
-
-    fun getPaymentHistory(tripId: String, uid: String): kotlinx.coroutines.flow.Flow<List<PaymentEvent>> =
-        callbackFlow {
-            val listener = tripsCollection.document(tripId)
-                .collection("members").document(uid)
-                .collection("paymentHistory")
-                .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                .addSnapshotListener { snap, error ->
-                    if (error != null) {
-                        Log.e("TripRepository", "getPaymentHistory failed", error)
-                        return@addSnapshotListener
-                    }
-                    val events = snap?.documents?.map { doc ->
-                        PaymentEvent(
-                            id = doc.id,
-                            type = doc.getString("type") ?: "",
-                            amount = doc.getDouble("amount") ?: 0.0,
-                            actorName = doc.getString("actorName") ?: "",
-                            timestamp = doc.getLong("timestamp") ?: 0L
-                        )
-                    } ?: emptyList()
-                    trySend(events)
-                }
-            awaitClose { listener.remove() }
-        }
 
     // ─── Member deactivation ─────────────────────────────────────────────────
 
@@ -651,7 +573,7 @@ class TripRepository(
         )
     }
 
-    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long) {
+    suspend fun joinTripByCode(tripId: String, uid: String, displayName: String, email: String, avatarSeed: Long, avatarColor: Int = 0) {
         val tripRef = tripsCollection.document(tripId)
         val tripDoc = tripRef.get().await()
         val currentMembers = (tripDoc.get("memberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList()
@@ -672,6 +594,7 @@ class TripRepository(
                     "displayName" to displayName,
                     "email" to email,
                     "avatarSeed" to avatarSeed,
+                    "avatarColor" to avatarColor,
                     "nightsStayed" to 0,
                     "amountPaid" to 0.0
                 )
@@ -847,5 +770,38 @@ class TripRepository(
 
     suspend fun deleteExpense(tripId: String, expenseId: String) {
         tripsCollection.document(tripId).collection("expenses").document(expenseId).delete().await()
+    }
+
+    // ─── Trip History ──────────────────────────────────────────────────────────
+
+    suspend fun logTripHistory(tripId: String, category: String, description: String) {
+        val data = mapOf(
+            "category" to category,
+            "description" to description,
+            "timestamp" to System.currentTimeMillis()
+        )
+        tripsCollection.document(tripId).collection("history").add(data).await()
+    }
+
+    fun getTripHistory(tripId: String): Flow<List<TripHistoryEvent>> = callbackFlow {
+        val listener = tripsCollection.document(tripId)
+            .collection("history")
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snap, error ->
+                if (error != null) {
+                    Log.e("TripRepository", "getTripHistory failed", error)
+                    return@addSnapshotListener
+                }
+                val events = snap?.documents?.map { doc ->
+                    TripHistoryEvent(
+                        id = doc.id,
+                        category = doc.getString("category") ?: "",
+                        description = doc.getString("description") ?: "",
+                        timestamp = doc.getLong("timestamp") ?: 0L
+                    )
+                } ?: emptyList()
+                trySend(events)
+            }
+        awaitClose { listener.remove() }
     }
 }

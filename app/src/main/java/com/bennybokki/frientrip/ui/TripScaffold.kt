@@ -111,6 +111,7 @@ fun TripScaffold(
                     if (currentMember != null) {
                         AvatarView(
                             seed = currentMember.avatarSeed,
+                            colorIndex = currentMember.avatarColor,
                             name = currentMember.displayName,
                             size = 56.dp
                         )
@@ -292,6 +293,7 @@ fun TripScaffold(
                 }
                 composable("trip_history") {
                     TripHistoryScreen(
+                        viewModel = viewModel,
                         onNavigateBack = { innerNav.popBackStack() }
                     )
                 }

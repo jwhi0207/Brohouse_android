@@ -67,14 +67,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 uid = user.uid,
                 displayName = doc.getString("displayName") ?: user.displayName ?: "",
                 email = user.email ?: "",
-                avatarSeed = doc.getLong("avatarSeed") ?: 0L
+                avatarSeed = doc.getLong("avatarSeed") ?: 0L,
+                avatarColor = doc.getLong("avatarColor")?.toInt() ?: 0
             )
             try {
                 userRepository.checkAndAcceptPendingInvites(
                     email = user.email ?: "",
                     uid = user.uid,
                     displayName = profile.displayName,
-                    avatarSeed = profile.avatarSeed
+                    avatarSeed = profile.avatarSeed,
+                    avatarColor = profile.avatarColor
                 )
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)
@@ -99,8 +101,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("users").document(user.uid).get().await()
             val avatarSeed = doc.getLong("avatarSeed") ?: 0L
+            val avatarColor = doc.getLong("avatarColor")?.toInt() ?: 0
             try {
-                userRepository.checkAndAcceptPendingInvites(email, user.uid, displayName, avatarSeed)
+                userRepository.checkAndAcceptPendingInvites(email, user.uid, displayName, avatarSeed, avatarColor)
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)
             }
@@ -134,13 +137,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val doc = com.google.firebase.firestore.FirebaseFirestore.getInstance()
                 .collection("users").document(user.uid).get().await()
             val avatarSeed = doc.getLong("avatarSeed") ?: 0L
+            val avatarColor = doc.getLong("avatarColor")?.toInt() ?: 0
             val displayNameFinal = doc.getString("displayName") ?: user.displayName ?: ""
             try {
                 userRepository.checkAndAcceptPendingInvites(
                     email = user.email ?: "",
                     uid = user.uid,
                     displayName = displayNameFinal,
-                    avatarSeed = avatarSeed
+                    avatarSeed = avatarSeed,
+                    avatarColor = avatarColor
                 )
             } catch (e: Exception) {
                 Log.e("AuthViewModel", "checkAndAcceptPendingInvites failed: ${e::class.simpleName} — ${e.message}", e)

@@ -74,6 +74,7 @@ fun ExpensesScreen(
                         IconButton(onClick = {}) {
                             AvatarView(
                                 seed = currentMember.avatarSeed,
+                                colorIndex = currentMember.avatarColor,
                                 name = currentMember.displayName,
                                 size = 34.dp
                             )
@@ -163,8 +164,8 @@ fun ExpensesScreen(
                             isAdmin = isAdmin,
                             currentUid = currentUid,
                             onApprove = { viewModel.approveExpense(expense.id) },
-                            onReject = { viewModel.deleteExpense(expense.id) },
-                            onCancel = { viewModel.deleteExpense(expense.id) },
+                            onReject = { viewModel.deleteExpense(expense.id, "rejected") },
+                            onCancel = { viewModel.deleteExpense(expense.id, "cancelled") },
                             modifier = Modifier.padding(horizontal = 16.dp)
                         )
                     }
