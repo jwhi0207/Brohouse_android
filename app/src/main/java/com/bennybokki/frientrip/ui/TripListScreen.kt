@@ -35,6 +35,8 @@ import coil.compose.AsyncImage
 import com.bennybokki.frientrip.TripListViewModel
 import com.bennybokki.frientrip.auth.AuthViewModel
 import com.bennybokki.frientrip.data.Trip
+import com.bennybokki.frientrip.ui.theme.ElectricCyan
+import com.bennybokki.frientrip.ui.theme.VividCard
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -264,10 +266,10 @@ fun TripListScreen(
 private fun TripCard(trip: Trip, onClick: () -> Unit) {
     val currency = NumberFormat.getCurrencyInstance(Locale.US)
 
-    Card(
+    VividCard(
         onClick = onClick,
+        accentIndex = 0,
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Box(
@@ -336,7 +338,7 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
                             currency.format(trip.totalCost),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF40C4FF)
+                            color = ElectricCyan
                         )
                         Text(
                             "Total Stay",
@@ -380,9 +382,9 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
 
 @Composable
 private fun InviteCard(trip: Trip, onAccept: () -> Unit) {
-    Card(
+    VividCard(
+        accentIndex = 5,
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import com.bennybokki.frientrip.TripViewModel
 import com.bennybokki.frientrip.data.SharedExpense
+import com.bennybokki.frientrip.ui.theme.VividCard
+import com.bennybokki.frientrip.ui.theme.VividStatus
+import com.bennybokki.frientrip.ui.theme.VividStatusBadge
 import java.text.NumberFormat
 import java.util.Locale
 
@@ -143,18 +146,10 @@ fun ExpensesScreen(
                             val actionCount = if (isAdmin) pendingExpenses.size
                                               else pendingExpenses.count { it.submittedByUid == currentUid }
                             if (actionCount > 0) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Color(0xFFFFF3E0)
-                                ) {
-                                    Text(
-                                        "$actionCount ACTION REQUIRED",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFE65100),
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    )
-                                }
+                                VividStatusBadge(
+                                    "$actionCount ACTION REQUIRED",
+                                    VividStatus.PENDING
+                                )
                             }
                         }
                     }
@@ -187,18 +182,10 @@ fun ExpensesScreen(
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Bold
                             )
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFE8F5E9)
-                            ) {
-                                Text(
-                                    "${approvedExpenses.size} COMPLETED",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF2E7D32),
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
+                            VividStatusBadge(
+                                "${approvedExpenses.size} COMPLETED",
+                                VividStatus.PAID
+                            )
                         }
                     }
                     items(approvedExpenses, key = { "approved_${it.id}" }) { expense ->
@@ -241,10 +228,8 @@ private fun ExpenseCard(
     val currency = NumberFormat.getCurrencyInstance(Locale.US)
     val splitLabel = if (expense.splitMethod == "even") "Split Evenly" else "Split by Nights"
 
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    VividCard(
+        accentIndex = if (expense.approved) 2 else 3,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -255,31 +240,9 @@ private fun ExpenseCard(
             ) {
                 // Status badge
                 if (expense.approved) {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFE8F5E9)
-                    ) {
-                        Text(
-                            "APPROVED",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF2E7D32),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
+                    VividStatusBadge("APPROVED", VividStatus.PAID)
                 } else {
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFFFF3E0)
-                    ) {
-                        Text(
-                            "PENDING APPROVAL",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFE65100),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
+                    VividStatusBadge("PENDING APPROVAL", VividStatus.PENDING)
                 }
                 Text(
                     currency.format(expense.amount),

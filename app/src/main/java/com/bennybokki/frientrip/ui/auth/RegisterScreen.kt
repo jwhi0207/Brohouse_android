@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.bennybokki.frientrip.R
 import com.bennybokki.frientrip.auth.AuthState
 import com.bennybokki.frientrip.auth.AuthViewModel
+import com.bennybokki.frientrip.ui.theme.ElectricLime
+import com.bennybokki.frientrip.ui.theme.NeonGreen
 
 @Composable
 fun RegisterScreen(
@@ -63,8 +65,8 @@ fun RegisterScreen(
     }
     val strengthColor = when (passwordStrength) {
         1 -> MaterialTheme.colorScheme.error
-        2 -> Color(0xFFF9A825)
-        3 -> Color(0xFF2E7D32)
+        2 -> ElectricLime
+        3 -> NeonGreen
         else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
     }
     val strengthLabel = when (passwordStrength) {
@@ -230,14 +232,14 @@ fun RegisterScreen(
                         Icon(
                             Icons.Default.CheckCircle,
                             contentDescription = null,
-                            tint = Color(0xFF2E7D32),
+                            tint = NeonGreen,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             "Passwords match",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF2E7D32)
+                            color = NeonGreen
                         )
                     } else {
                         Text(

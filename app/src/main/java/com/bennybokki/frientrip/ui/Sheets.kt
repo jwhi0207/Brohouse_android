@@ -27,6 +27,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.bennybokki.frientrip.data.Ride
+import com.bennybokki.frientrip.ui.theme.LocalIsDarkTheme
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.StatusDueBgDark
+import com.bennybokki.frientrip.ui.theme.StatusDueBgLight
+import com.bennybokki.frientrip.ui.theme.StatusDueDark
+import com.bennybokki.frientrip.ui.theme.StatusDueLight
+import com.bennybokki.frientrip.ui.theme.StatusPaidDark
+import com.bennybokki.frientrip.ui.theme.StatusPaidLight
+import com.bennybokki.frientrip.ui.theme.VividPink
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -130,7 +139,7 @@ fun AddPaymentSheet(
                     PaymentSummaryRow(
                         label = "Remaining",
                         value = if (remaining <= 0.0) "Paid up \u2713" else currency.format(remaining),
-                        valueColor = if (remaining <= 0.0) Color(0xFF4CAF50)
+                        valueColor = if (remaining <= 0.0) (if (LocalIsDarkTheme.current) StatusPaidDark else StatusPaidLight)
                                      else MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -199,7 +208,7 @@ fun PayExpensesSheet(
             if (pendingPaymentStatus == "rejected") {
                 Surface(
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-                    color = Color(0xFFFFEBEE),
+                    color = if (LocalIsDarkTheme.current) StatusDueBgDark else StatusDueBgLight,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -209,14 +218,14 @@ fun PayExpensesSheet(
                         Icon(
                             Icons.Default.Cancel,
                             contentDescription = null,
-                            tint = Color(0xFFB71C1C),
+                            tint = if (LocalIsDarkTheme.current) StatusDueDark else StatusDueLight,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(10.dp))
                         Text(
                             "Your last payment submission was rejected by the trip manager.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFB71C1C)
+                            color = if (LocalIsDarkTheme.current) StatusDueDark else StatusDueLight
                         )
                     }
                 }
@@ -393,7 +402,7 @@ fun VerifyPaymentSheet(
                     onClick = onReject,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFB71C1C),
+                        containerColor = VividPink,
                         contentColor = Color.White
                     )
                 ) {
@@ -403,7 +412,7 @@ fun VerifyPaymentSheet(
                     onClick = onApprove,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1B5E20),
+                        containerColor = NeonGreen,
                         contentColor = Color.White
                     )
                 ) {

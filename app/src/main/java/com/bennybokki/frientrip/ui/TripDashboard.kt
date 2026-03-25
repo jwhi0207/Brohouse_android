@@ -39,6 +39,12 @@ import com.bennybokki.frientrip.data.Ride
 import com.bennybokki.frientrip.data.RideRequest
 import com.bennybokki.frientrip.data.SupplyItem
 import com.bennybokki.frientrip.data.TripMember
+import com.bennybokki.frientrip.ui.theme.ElectricCyan
+import com.bennybokki.frientrip.ui.theme.NeonGreen
+import com.bennybokki.frientrip.ui.theme.NeonPurple
+import com.bennybokki.frientrip.ui.theme.VividCard
+import com.bennybokki.frientrip.ui.theme.VividStatus
+import com.bennybokki.frientrip.ui.theme.VividStatusBadge
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -178,7 +184,8 @@ fun TripDashboard(
                             subtitle = if (supplyItems.isEmpty()) "No items yet"
                                        else "${supplyItems.size} items total",
                             onClick = onNavigateToSupplies,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            accentIndex = 1
                         )
                         val needRideCount = rideRequests.size
                         FeatureCard(
@@ -190,17 +197,14 @@ fun TripDashboard(
                             subtitle = if (rides.isEmpty()) "No rides yet" else "Rides active",
                             onClick = onNavigateToCarpool,
                             modifier = Modifier.weight(1f),
+                            accentIndex = 2,
                             badgeColor = if (needRideCount > 0) Color(0xFFFFF3E0) else null,
                             badgeTextColor = if (needRideCount > 0) Color(0xFFE65100) else null
                         )
                     }
-                    Card(
+                    VividCard(
                         onClick = onNavigateToExpenses,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        accentIndex = 3,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -231,19 +235,10 @@ fun TripDashboard(
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 if (isAdmin && pendingExpenseCount > 0) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = Color(0xFFFFF3E0),
-                                        modifier = Modifier.padding(top = 4.dp)
-                                    ) {
-                                        Text(
-                                            "$pendingExpenseCount Pending",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color(0xFFE65100),
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                        )
-                                    }
+                                    VividStatusBadge(
+                                        "$pendingExpenseCount Pending",
+                                        VividStatus.PENDING
+                                    )
                                 } else {
                                     Text(
                                         if (expensesList.isEmpty()) "No expenses yet" else "${expensesList.size} expenses",
@@ -299,12 +294,8 @@ fun TripDashboard(
                 }
             } else {
                 item {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    VividCard(
+                        accentIndex = 4,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
@@ -462,10 +453,10 @@ fun HouseHeroCard(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
-    Card(
+    VividCard(
         onClick = onClick,
+        accentIndex = 0,
         shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = modifier.fillMaxWidth()
     ) {
         Column {
@@ -527,7 +518,7 @@ fun HouseHeroCard(
                             currency.format(totalCost),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF40C4FF)
+                            color = ElectricCyan
                         )
                         Text(
                             "Total Stay",
@@ -662,16 +653,13 @@ private fun FeatureCard(
     subtitle: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    accentIndex: Int = 0,
     badgeColor: Color? = null,
     badgeTextColor: Color? = null
 ) {
-    Card(
+    VividCard(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        accentIndex = accentIndex,
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -763,7 +751,7 @@ fun MemberRowView(
                 Icon(
                     Icons.Filled.NightlightRound,
                     contentDescription = null,
-                    tint = Color(0xFF5C6BC0),
+                    tint = NeonPurple,
                     modifier = Modifier.size(13.dp)
                 )
                 Spacer(Modifier.width(3.dp))
@@ -780,12 +768,12 @@ fun MemberRowView(
         Column(horizontalAlignment = Alignment.End) {
             when {
                 computedOwed == 0.0 || member.nightsStayed == 0 -> Unit
-                isPaidUp -> StatusBadge("PAID UP", Color(0xFF1B5E20), Color(0xFFE8F5E9))
-                else -> StatusBadge(currency.format(remaining) + " DUE", Color(0xFFB71C1C), Color(0xFFFFEBEE))
+                isPaidUp -> VividStatusBadge("PAID UP", VividStatus.PAID)
+                else -> VividStatusBadge(currency.format(remaining) + " DUE", VividStatus.DUE)
             }
             if (isAdmin && hasPendingPayment) {
                 Spacer(Modifier.height(4.dp))
-                StatusBadge("REVIEW", Color(0xFFE65100), Color(0xFFFFF3E0))
+                VividStatusBadge("REVIEW", VividStatus.PENDING)
             }
         }
 
@@ -859,12 +847,11 @@ fun SuppliesCard(
     modifier: Modifier = Modifier
 ) {
     val unclaimed = supplyItems.count { !it.isClaimed }
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+    VividCard(
+        onClick = onClick,
+        accentIndex = 1,
         shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Supplies", style = MaterialTheme.typography.titleMedium)
@@ -902,12 +889,11 @@ fun CarpoolCard(
     val openSeats = rides.sumOf { it.availableSeats }
     val needRideCount = rideRequests.size
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
+    VividCard(
+        onClick = onClick,
+        accentIndex = 2,
         shape = RoundedCornerShape(14.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text("Carpool", style = MaterialTheme.typography.titleMedium)

@@ -48,6 +48,7 @@ import com.bennybokki.frientrip.TripViewModel
 import com.bennybokki.frientrip.data.SharedExpense
 import com.bennybokki.frientrip.data.SupplyItem
 import com.bennybokki.frientrip.data.TripMember
+import com.bennybokki.frientrip.ui.theme.VividCard
 import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
@@ -256,12 +257,8 @@ fun SuppliesScreen(
                 val claimedCount = categoryItems.count { it.isClaimed }
 
                 item(key = "cat_$category") {
-                    Card(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                    VividCard(
+                        accentIndex = SUPPLY_CATEGORIES.indexOf(category),
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
