@@ -57,6 +57,7 @@ fun TripDashboard(
     onOpenDrawer: () -> Unit
 ) {
     val members by viewModel.members.collectAsState()
+    val activeMembers = members.filter { !it.isDeactivated }
     val trip by viewModel.trip.collectAsState()
     val supplyItems by viewModel.supplyItems.collectAsState()
     val rides by viewModel.rides.collectAsState()
@@ -97,7 +98,7 @@ fun TripDashboard(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                "${members.size} ${if (members.size == 1) "Guest" else "Guests"}",
+                                "${activeMembers.size} ${if (activeMembers.size == 1) "Guest" else "Guests"}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -148,7 +149,7 @@ fun TripDashboard(
             item {
                 HouseHeroCard(
                     details = houseDetails,
-                    guestCount = members.size,
+                    guestCount = activeMembers.size,
                     onClick = onNavigateToHouseDetails,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
@@ -283,7 +284,7 @@ fun TripDashboard(
             }
 
             // ── Member rows ───────────────────────────────────────────────────
-            if (members.isEmpty()) {
+            if (activeMembers.isEmpty()) {
                 item {
                     Text(
                         text = if (isAdmin) "Nobody here yet\nTap the person icon to invite friends"
@@ -308,7 +309,7 @@ fun TripDashboard(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp)
                     ) {
-                        members.forEachIndexed { index, member ->
+                        activeMembers.forEachIndexed { index, member ->
                             val computedOwed = memberCosts[member.uid] ?: 0.0
                             MemberRowView(
                                 member = member,
@@ -320,7 +321,7 @@ fun TripDashboard(
                                 onPayExpenses = { payExpensesMember = member },
                                 onVerifyPayment = { verifyPaymentMember = member }
                             )
-                            if (index < members.lastIndex) {
+                            if (index < activeMembers.lastIndex) {
                                 HorizontalDivider(
                                     modifier = Modifier.padding(start = 72.dp),
                                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)

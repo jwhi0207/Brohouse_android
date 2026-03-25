@@ -287,6 +287,7 @@ fun TripScaffold(
                 }
                 composable("manage_group") {
                     ManageGroupScreen(
+                        viewModel = viewModel,
                         onNavigateBack = { innerNav.popBackStack() }
                     )
                 }

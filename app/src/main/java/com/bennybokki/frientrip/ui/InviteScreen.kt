@@ -34,7 +34,8 @@ fun InviteScreen(
     onNavigateBack: () -> Unit,
     onOpenDrawer: () -> Unit
 ) {
-    val members by viewModel.members.collectAsState()
+    val allMembers by viewModel.members.collectAsState()
+    val members = allMembers.filter { !it.isDeactivated }
     val trip by viewModel.trip.collectAsState()
     val pendingEmails = trip?.pendingInviteEmails ?: emptyList()
     val ownerId = trip?.ownerId ?: ""
