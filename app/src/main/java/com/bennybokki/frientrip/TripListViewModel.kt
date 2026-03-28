@@ -16,6 +16,18 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+data class TripCreationParams(
+    val name: String,
+    val houseURL: String = "",
+    val address: String = "",
+    val totalCost: Double = 0.0,
+    val checkInMillis: Long = 0L,
+    val checkOutMillis: Long = 0L,
+    val description: String = "",
+    val emoji: String = "",
+    val inviteEmails: List<String> = emptyList()
+)
+
 class TripListViewModel(application: Application) : AndroidViewModel(application) {
 
     private val tripRepo = TripRepository()
@@ -97,7 +109,7 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun createTrip(name: String) = viewModelScope.launch {
+    fun createTrip(params: TripCreationParams) = viewModelScope.launch {
         try {
             val user = FirebaseAuth.getInstance().currentUser ?: return@launch
             val userDoc = FirebaseFirestore.getInstance()
@@ -107,12 +119,20 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
             val avatarSeed = userDoc.getLong("avatarSeed") ?: 0L
             val avatarColor = userDoc.getLong("avatarColor")?.toInt() ?: 0
             tripRepo.createTrip(
-                name = name,
+                name = params.name,
                 ownerId = user.uid,
                 ownerDisplayName = displayName,
                 ownerEmail = email,
                 ownerAvatarSeed = avatarSeed,
-                ownerAvatarColor = avatarColor
+                ownerAvatarColor = avatarColor,
+                houseURL = params.houseURL,
+                address = params.address,
+                totalCost = params.totalCost,
+                checkInMillis = params.checkInMillis,
+                checkOutMillis = params.checkOutMillis,
+                description = params.description,
+                emoji = params.emoji,
+                pendingInviteEmails = params.inviteEmails
             )
         } catch (e: Exception) {
             Log.e("TripListViewModel", "createTrip failed: ${e.message}", e)

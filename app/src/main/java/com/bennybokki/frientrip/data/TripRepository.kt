@@ -42,23 +42,35 @@ class TripRepository(
         ownerDisplayName: String,
         ownerEmail: String,
         ownerAvatarSeed: Long,
-        ownerAvatarColor: Int = 0
+        ownerAvatarColor: Int = 0,
+        houseURL: String = "",
+        address: String = "",
+        totalCost: Double = 0.0,
+        checkInMillis: Long = 0L,
+        checkOutMillis: Long = 0L,
+        description: String = "",
+        emoji: String = "",
+        pendingInviteEmails: List<String> = emptyList()
     ): String {
         val tripRef = tripsCollection.document()
         val tripId = tripRef.id
         val tripData = mapOf(
             "name" to name,
             "ownerId" to ownerId,
-            "houseURL" to "",
+            "houseURL" to houseURL,
             "thumbnailURL" to null,
-            "address" to "",
+            "address" to address,
             "totalNights" to 0,
-            "totalCost" to 0.0,
+            "totalCost" to totalCost,
+            "checkInMillis" to checkInMillis,
+            "checkOutMillis" to checkOutMillis,
             "memberIds" to listOf(ownerId),
             "deactivatedMemberIds" to emptyList<String>(),
-            "pendingInviteEmails" to emptyList<String>(),
+            "pendingInviteEmails" to pendingInviteEmails,
             "inviteCode" to generateInviteCode(),
-            "inviteCodeEnabled" to true
+            "inviteCodeEnabled" to true,
+            "description" to description,
+            "emoji" to emoji
         )
         val memberData = mapOf(
             "uid" to ownerId,
@@ -73,6 +85,15 @@ class TripRepository(
             batch.set(tripRef, tripData)
             batch.set(tripRef.collection("members").document(ownerId), memberData)
         }.await()
+
+        // Fetch thumbnail in the background if a house URL was provided
+        if (houseURL.isNotBlank()) {
+            val thumbnail = withContext(Dispatchers.IO) { fetchAndUploadThumbnail(tripId, houseURL) }
+            if (thumbnail != null) {
+                tripsCollection.document(tripId).update("thumbnailURL", thumbnail).await()
+            }
+        }
+
         return tripId
     }
 
@@ -96,7 +117,9 @@ class TripRepository(
                         deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
-                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true,
+                        description = doc.getString("description") ?: "",
+                        emoji = doc.getString("emoji") ?: ""
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -123,7 +146,9 @@ class TripRepository(
                         deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
-                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true,
+                        description = doc.getString("description") ?: "",
+                        emoji = doc.getString("emoji") ?: ""
                     )
                 )
             } else {
@@ -518,7 +543,9 @@ class TripRepository(
                         deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
                         inviteCode = doc.getString("inviteCode"),
-                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+                        inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true,
+                        description = doc.getString("description") ?: "",
+                        emoji = doc.getString("emoji") ?: ""
                     )
                 } ?: emptyList()
                 trySend(trips)
@@ -569,7 +596,9 @@ class TripRepository(
             deactivatedMemberIds = (doc.get("deactivatedMemberIds") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
             pendingInviteEmails = (doc.get("pendingInviteEmails") as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
             inviteCode = doc.getString("inviteCode"),
-            inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true
+            inviteCodeEnabled = doc.getBoolean("inviteCodeEnabled") ?: true,
+            description = doc.getString("description") ?: "",
+            emoji = doc.getString("emoji") ?: ""
         )
     }
 
