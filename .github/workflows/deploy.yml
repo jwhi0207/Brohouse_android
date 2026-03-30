@@ -1,4 +1,4 @@
-name: Deploy to Play Store Internal Testing
+name: Deploy to Play Store
 
 on:
   push:
@@ -67,4 +67,13 @@ jobs:
           packageName: com.bennybokki.frientrip
           releaseFiles: app/build/outputs/bundle/release/*.aab
           track: internal
+          status: completed
+
+      - name: Upload to Play Store Closed Testing
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: com.bennybokki.frientrip
+          releaseFiles: app/build/outputs/bundle/release/*.aab
+          track: alpha
           status: completed
