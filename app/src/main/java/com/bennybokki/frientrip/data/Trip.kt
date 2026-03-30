@@ -15,5 +15,7 @@ data class Trip(
     val deactivatedMemberIds: List<String> = emptyList(),
     val pendingInviteEmails: List<String> = emptyList(),
     val inviteCode: String? = null,
-    val inviteCodeEnabled: Boolean = true
+    val inviteCodeEnabled: Boolean = true,
+    val description: String = "",
+    val emoji: String = ""
 )
