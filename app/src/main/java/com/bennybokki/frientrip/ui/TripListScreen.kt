@@ -73,9 +73,10 @@ fun TripListScreen(
         }
     }
 
-    // TODO: split Upcoming/Past by startDate when that field is added to Trip
+    val now = System.currentTimeMillis()
     val displayedTrips = when (selectedTab) {
-        TripFilter.Upcoming, TripFilter.Past -> trips
+        TripFilter.Upcoming -> trips.filter { it.checkOutMillis <= 0L || it.checkOutMillis >= now }
+        TripFilter.Past -> trips.filter { it.checkOutMillis > 0L && it.checkOutMillis < now }
         TripFilter.Invites -> pendingInviteTrips
     }
 
@@ -131,7 +132,7 @@ fun TripListScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(TripFilter.entries) { tab ->
+                items(TripFilter.entries.filter { it != TripFilter.Invites }) { tab ->
                     val selected = tab == selectedTab
                     val badgeCount = if (tab == TripFilter.Invites) pendingInviteTrips.size else 0
                     Surface(

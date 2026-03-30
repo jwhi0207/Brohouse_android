@@ -12,6 +12,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -36,6 +37,11 @@ class TripListViewModel(application: Application) : AndroidViewModel(application
     private val currentEmail: String get() = FirebaseAuth.getInstance().currentUser?.email ?: ""
 
     val trips = tripRepo.getUserTrips(currentUid)
+        .map { list ->
+            val (withDate, withoutDate) = list.partition { it.checkInMillis > 0L }
+            withDate.sortedBy { it.checkInMillis } +
+                withoutDate.sortedBy { it.name.lowercase() }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val pendingInviteTrips = tripRepo.getPendingInviteTrips(currentEmail)
