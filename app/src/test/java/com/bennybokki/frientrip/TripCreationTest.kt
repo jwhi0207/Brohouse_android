@@ -81,6 +81,10 @@ class TripCreationTest {
         assertEquals(0, trip["totalNights"])
         assertEquals(0.0, trip["totalCost"])
         assertEquals("", trip["houseURL"])
+        assertEquals("", trip["description"])
+        assertEquals("", trip["emoji"])
+        assertEquals(0L, trip["checkInMillis"])
+        assertEquals(0L, trip["checkOutMillis"])
 
         val memberDoc = capturedMemberData.first()
         assertEquals("uid_owner", memberDoc["uid"])
@@ -115,6 +119,67 @@ class TripCreationTest {
 
         val pending = capturedTripData.first()["pendingInviteEmails"] as List<*>
         assertTrue(pending.isEmpty())
+    }
+
+    @Test
+    fun `createTrip with optional fields writes all data`() = runTest {
+        val capturedTripData = mutableListOf<Map<String, Any?>>()
+
+        val db = buildCreateTripMock(
+            generatedTripId = "trip_full",
+            onTripSet = { capturedTripData += it },
+            onMemberSet = {}
+        )
+
+        val repo = TripRepository(db = db, storage = mockk(relaxed = true))
+        repo.createTrip(
+            name = "Lake House",
+            ownerId = "uid_1",
+            ownerDisplayName = "Alice",
+            ownerEmail = "alice@example.com",
+            ownerAvatarSeed = 999L,
+            address = "123 Lake Rd",
+            totalCost = 1500.00,
+            checkInMillis = 1700000000000L,
+            checkOutMillis = 1700300000000L,
+            description = "Annual friends trip",
+            emoji = "\uD83C\uDFD6\uFE0F",
+            pendingInviteEmails = listOf("bob@example.com", "carol@example.com")
+        )
+
+        val trip = capturedTripData.first()
+        assertEquals("Lake House", trip["name"])
+        assertEquals("123 Lake Rd", trip["address"])
+        assertEquals(1500.00, trip["totalCost"])
+        assertEquals(1700000000000L, trip["checkInMillis"])
+        assertEquals(1700300000000L, trip["checkOutMillis"])
+        assertEquals("Annual friends trip", trip["description"])
+        assertEquals("\uD83C\uDFD6\uFE0F", trip["emoji"])
+        assertEquals(listOf("bob@example.com", "carol@example.com"), trip["pendingInviteEmails"])
+    }
+
+    @Test
+    fun `createTrip with invite emails populates pendingInviteEmails`() = runTest {
+        val capturedTripData = mutableListOf<Map<String, Any?>>()
+
+        val db = buildCreateTripMock(
+            generatedTripId = "trip_inv",
+            onTripSet = { capturedTripData += it },
+            onMemberSet = {}
+        )
+
+        TripRepository(db = db, storage = mockk(relaxed = true)).createTrip(
+            name = "Invite Test",
+            ownerId = "uid_2",
+            ownerDisplayName = "Dave",
+            ownerEmail = "dave@example.com",
+            ownerAvatarSeed = 0L,
+            pendingInviteEmails = listOf("eve@example.com")
+        )
+
+        val pending = capturedTripData.first()["pendingInviteEmails"] as List<*>
+        assertEquals(1, pending.size)
+        assertEquals("eve@example.com", pending.first())
     }
 
     // ─── Helper ──────────────────────────────────────────────────────────────

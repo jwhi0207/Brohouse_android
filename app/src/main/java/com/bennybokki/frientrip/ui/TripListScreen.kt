@@ -1,22 +1,22 @@
 package com.bennybokki.frientrip.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.GroupAdd
-import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.NightlightRound
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,13 +25,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.TextUnitType
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.bennybokki.frientrip.TripCreationParams
 import com.bennybokki.frientrip.TripListViewModel
 import com.bennybokki.frientrip.auth.AuthViewModel
 import com.bennybokki.frientrip.data.Trip
@@ -68,9 +73,10 @@ fun TripListScreen(
         }
     }
 
-    // TODO: split Upcoming/Past by startDate when that field is added to Trip
+    val now = System.currentTimeMillis()
     val displayedTrips = when (selectedTab) {
-        TripFilter.Upcoming, TripFilter.Past -> trips
+        TripFilter.Upcoming -> trips.filter { it.checkOutMillis <= 0L || it.checkOutMillis >= now }
+        TripFilter.Past -> trips.filter { it.checkOutMillis > 0L && it.checkOutMillis < now }
         TripFilter.Invites -> pendingInviteTrips
     }
 
@@ -126,7 +132,7 @@ fun TripListScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(TripFilter.entries) { tab ->
+                items(TripFilter.entries.filter { it != TripFilter.Invites }) { tab ->
                     val selected = tab == selectedTab
                     val badgeCount = if (tab == TripFilter.Invites) pendingInviteTrips.size else 0
                     Surface(
@@ -224,8 +230,8 @@ fun TripListScreen(
     if (showCreateSheet) {
         CreateTripSheet(
             onDismiss = { showCreateSheet = false },
-            onCreate = { name ->
-                viewModel.createTrip(name)
+            onCreate = { params ->
+                viewModel.createTrip(params)
                 showCreateSheet = false
             }
         )
@@ -300,9 +306,11 @@ private fun TripCard(trip: Trip, onClick: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        trip.name.firstOrNull()?.uppercaseChar()?.toString() ?: "T",
+                        if (trip.emoji.isNotBlank()) trip.emoji
+                        else trip.name.firstOrNull()?.uppercaseChar()?.toString() ?: "T",
                         style = MaterialTheme.typography.displaySmall,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f),
+                        color = if (trip.emoji.isNotBlank()) Color.Unspecified
+                                else MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.4f),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -437,12 +445,42 @@ private fun InviteCard(trip: Trip, onAccept: () -> Unit) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
-    val sheetState = rememberModalBottomSheetState()
+private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (TripCreationParams) -> Unit) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var name by remember { mutableStateOf("") }
+    var showMoreDetails by remember { mutableStateOf(false) }
+    var selectedEmoji by remember { mutableStateOf("") }
+    var houseURL by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var costText by remember { mutableStateOf("") }
+    var checkInMillis by remember { mutableLongStateOf(0L) }
+    var checkOutMillis by remember { mutableLongStateOf(0L) }
+    var description by remember { mutableStateOf("") }
+    var inviteEmails by remember { mutableStateOf(listOf<String>()) }
+    var currentEmailInput by remember { mutableStateOf("") }
+
+    var showCheckInDatePicker by remember { mutableStateOf(false) }
+    var showCheckOutDatePicker by remember { mutableStateOf(false) }
+
+    val clipboardManager = LocalClipboardManager.current
     val trimmed = name.trim()
+
+    val travelEmojis = listOf(
+        "\uD83C\uDFD6\uFE0F", // beach
+        "\u26F0\uFE0F",       // mountain
+        "\uD83C\uDFC2",       // snowboard
+        "\uD83C\uDFD5\uFE0F", // camping
+        "\u2708\uFE0F",       // plane
+        "\uD83C\uDFE0",       // house
+        "\uD83C\uDF34",       // palm tree
+        "\uD83C\uDF89",       // party
+        "\u2600\uFE0F",       // sun
+        "\u2744\uFE0F",       // snowflake
+        "\uD83C\uDFDB\uFE0F", // classical building
+        "\uD83D\uDE97"        // car
+    )
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -453,9 +491,12 @@ private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
             modifier = Modifier
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Text("Create New Trip", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(24.dp))
+
+            // ── Trip Name (required) ──
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -463,9 +504,216 @@ private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
                 placeholder = { Text("e.g. Weekend in Paris") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words),
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
+
+            Spacer(Modifier.height(16.dp))
+
+            // ── "Add more details" toggle ──
+            TextButton(
+                onClick = { showMoreDetails = !showMoreDetails },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = if (showMoreDetails) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(if (showMoreDetails) "Less details" else "Add more details")
+            }
+
+            // ── Expandable optional fields ──
+            AnimatedVisibility(visible = showMoreDetails) {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+
+                    // ── Emoji ──
+                    Text(
+                        "TRIP VIBE",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(travelEmojis.size) { index ->
+                            val emoji = travelEmojis[index]
+                            val isSelected = emoji == selectedEmoji
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                                        else MaterialTheme.colorScheme.surfaceVariant,
+                                border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clickable {
+                                        selectedEmoji = if (isSelected) "" else emoji
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                                    Text(emoji, style = MaterialTheme.typography.titleLarge)
+                                }
+                            }
+                        }
+                    }
+
+                    // ── Dates ──
+                    Text(
+                        "DATES",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = if (checkInMillis > 0) formatDate(checkInMillis) else "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Check-in") },
+                            placeholder = { Text("Select date") },
+                            trailingIcon = {
+                                IconButton(onClick = { showCheckInDatePicker = true }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = "Pick date", modifier = Modifier.size(18.dp))
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                        OutlinedTextField(
+                            value = if (checkOutMillis > 0) formatDate(checkOutMillis) else "",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Check-out") },
+                            placeholder = { Text("Select date") },
+                            trailingIcon = {
+                                IconButton(onClick = { showCheckOutDatePicker = true }) {
+                                    Icon(Icons.Default.CalendarMonth, contentDescription = "Pick date", modifier = Modifier.size(18.dp))
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    // ── Location ──
+                    OutlinedTextField(
+                        value = address,
+                        onValueChange = { address = it },
+                        label = { Text("Location") },
+                        placeholder = { Text("123 Beach Rd, Malibu, CA") },
+                        singleLine = true,
+                        trailingIcon = {
+                            Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // ── House URL ──
+                    OutlinedTextField(
+                        value = houseURL,
+                        onValueChange = { houseURL = it },
+                        label = { Text("House URL") },
+                        placeholder = { Text("https://rentals.com/villa-123") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        trailingIcon = {
+                            IconButton(onClick = {
+                                clipboardManager.getText()?.text?.let { houseURL = it }
+                            }) {
+                                Icon(Icons.Default.ContentPaste, contentDescription = "Paste", modifier = Modifier.size(18.dp))
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // ── Cost ──
+                    OutlinedTextField(
+                        value = costText,
+                        onValueChange = { costText = it },
+                        label = { Text("Total Cost") },
+                        placeholder = { Text("0.00") },
+                        singleLine = true,
+                        prefix = { Text("$ ") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // ── Description ──
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("Description") },
+                        placeholder = { Text("What's this trip about?") },
+                        maxLines = 3,
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // ── Invite Friends ──
+                    Text(
+                        "INVITE FRIENDS",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = TextUnit(1.5f, TextUnitType.Sp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = currentEmailInput,
+                            onValueChange = { currentEmailInput = it },
+                            placeholder = { Text("friend@email.com") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilledIconButton(
+                            onClick = {
+                                val email = currentEmailInput.trim().lowercase()
+                                if (email.contains("@") && email !in inviteEmails) {
+                                    inviteEmails = inviteEmails + email
+                                    currentEmailInput = ""
+                                }
+                            },
+                            enabled = currentEmailInput.trim().contains("@"),
+                            shape = CircleShape
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add email")
+                        }
+                    }
+                    if (inviteEmails.isNotEmpty()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            inviteEmails.forEach { email ->
+                                InputChip(
+                                    selected = false,
+                                    onClick = { inviteEmails = inviteEmails - email },
+                                    label = { Text(email, style = MaterialTheme.typography.bodySmall) },
+                                    trailingIcon = {
+                                        Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(16.dp))
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
+
+            // ── Action buttons ──
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -476,13 +724,49 @@ private fun CreateTripSheet(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
                     modifier = Modifier.weight(1f).height(48.dp)
                 ) { Text("Cancel") }
                 Button(
-                    onClick = { onCreate(trimmed) },
+                    onClick = {
+                        onCreate(
+                            TripCreationParams(
+                                name = trimmed,
+                                houseURL = houseURL.trim(),
+                                address = address.trim(),
+                                totalCost = costText.trim().toDoubleOrNull() ?: 0.0,
+                                checkInMillis = checkInMillis,
+                                checkOutMillis = checkOutMillis,
+                                description = description.trim(),
+                                emoji = selectedEmoji,
+                                inviteEmails = inviteEmails
+                            )
+                        )
+                    },
                     enabled = trimmed.isNotEmpty(),
                     shape = CircleShape,
                     modifier = Modifier.weight(1f).height(48.dp)
                 ) { Text("Create") }
             }
         }
+    }
+
+    // ── Date Pickers ──
+    if (showCheckInDatePicker) {
+        AppDatePickerDialog(
+            initialMillis = checkInMillis,
+            onDismiss = { showCheckInDatePicker = false },
+            onConfirm = { millis ->
+                checkInMillis = mergeDateTime(millis, checkInMillis)
+                showCheckInDatePicker = false
+            }
+        )
+    }
+    if (showCheckOutDatePicker) {
+        AppDatePickerDialog(
+            initialMillis = checkOutMillis,
+            onDismiss = { showCheckOutDatePicker = false },
+            onConfirm = { millis ->
+                checkOutMillis = mergeDateTime(millis, checkOutMillis)
+                showCheckOutDatePicker = false
+            }
+        )
     }
 }
 
