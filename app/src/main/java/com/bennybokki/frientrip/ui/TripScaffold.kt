@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Campaign
 import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.History
@@ -74,7 +75,9 @@ fun TripScaffold(
     val trip by viewModel.trip.collectAsState()
     val members by viewModel.members.collectAsState()
     val isTripAdmin = isAdmin || trip?.ownerId == viewModel.currentUid
+    val isOwner = trip?.ownerId == viewModel.currentUid
     val currentMember = members.find { it.uid == viewModel.currentUid }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     fun openDrawer() = scope.launch { drawerState.open() }
     fun closeDrawer() = scope.launch { drawerState.close() }
@@ -90,6 +93,24 @@ fun TripScaffold(
     val effectiveRoute = when (currentRoute) {
         "expenses" -> "dashboard"
         else -> currentRoute
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Delete Trip?") },
+            text = { Text("This will permanently delete \"${trip?.name}\" and all its data for everyone. This cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.deleteTrip { onNavigateBack() } },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     ModalNavigationDrawer(
@@ -195,6 +216,20 @@ fun TripScaffold(
                 Spacer(Modifier.weight(1f))
 
                 HorizontalDivider()
+
+                // Delete Trip (owner only)
+                if (isOwner) {
+                    NavigationDrawerItem(
+                        label = { Text("Delete Trip", color = MaterialTheme.colorScheme.error) },
+                        icon = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                        selected = false,
+                        onClick = {
+                            closeDrawer()
+                            showDeleteDialog = true
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
 
                 // Sign Out
                 NavigationDrawerItem(
