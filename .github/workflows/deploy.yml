@@ -60,20 +60,53 @@ jobs:
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
           token_format: access_token
 
-      - name: Upload to Play Store Internal Testing
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
-          packageName: com.bennybokki.frientrip
-          releaseFiles: app/build/outputs/bundle/release/*.aab
-          track: internal
-          status: completed
+      - name: Install Google API client
+        run: pip install google-api-python-client google-auth
 
-      - name: Upload to Play Store Closed Testing
-        uses: r0adkll/upload-google-play@v1
-        with:
-          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
-          packageName: com.bennybokki.frientrip
-          releaseFiles: app/build/outputs/bundle/release/*.aab
-          track: alpha
-          status: completed
+      - name: Upload to Internal and Closed Testing
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          python3 - <<'EOF'
+          import glob
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+          import google.auth
+
+          PACKAGE_NAME = "com.bennybokki.frientrip"
+          TRACKS = ["internal", "alpha"]
+
+          credentials, _ = google.auth.default(
+              scopes=["https://www.googleapis.com/auth/androidpublisher"]
+          )
+          service = build("androidpublisher", "v3", credentials=credentials)
+
+          edit = service.edits().insert(packageName=PACKAGE_NAME, body={}).execute()
+          edit_id = edit["id"]
+
+          aab_path = glob.glob("app/build/outputs/bundle/release/*.aab")[0]
+          media = MediaFileUpload(aab_path, mimetype="application/octet-stream")
+          bundle = service.edits().bundles().upload(
+              packageName=PACKAGE_NAME,
+              editId=edit_id,
+              media_body=media
+          ).execute()
+
+          version_code = bundle["versionCode"]
+          print(f"Uploaded version code: {version_code}")
+
+          for track in TRACKS:
+              service.edits().tracks().update(
+                  packageName=PACKAGE_NAME,
+                  editId=edit_id,
+                  track=track,
+                  body={
+                      "track": track,
+                      "releases": [{"versionCodes": [version_code], "status": "completed"}]
+                  }
+              ).execute()
+              print(f"Assigned to {track}")
+
+          service.edits().commit(packageName=PACKAGE_NAME, editId=edit_id).execute()
+          print("Done")
+          EOF
