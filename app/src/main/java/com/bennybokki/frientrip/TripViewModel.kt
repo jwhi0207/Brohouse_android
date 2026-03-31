@@ -423,4 +423,13 @@ class TripViewModel(
             Log.e("TripViewModel", "regenerateInviteCode failed", e)
         }
     }
+
+    fun deleteTrip(onSuccess: () -> Unit) = viewModelScope.launch {
+        try {
+            repo.deleteTrip(tripId)
+            onSuccess()
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "deleteTrip failed", e)
+        }
+    }
 }

@@ -833,4 +833,16 @@ class TripRepository(
             }
         awaitClose { listener.remove() }
     }
+
+    suspend fun deleteTrip(tripId: String) {
+        val tripRef = tripsCollection.document(tripId)
+        val subcollections = listOf("members", "supplies", "rides", "rideRequests", "expenses", "history")
+        for (name in subcollections) {
+            val docs = tripRef.collection(name).get().await()
+            val batch = db.batch()
+            docs.documents.forEach { batch.delete(it.reference) }
+            if (docs.documents.isNotEmpty()) batch.commit().await()
+        }
+        tripRef.delete().await()
+    }
 }
