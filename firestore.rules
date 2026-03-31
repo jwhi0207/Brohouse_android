@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /trips/{tripId} {
-      // Returns true if the calling user appears in the trip's deactivated list.
+
+      // NEW: helper — is the calling user in the deactivated list?
       function isDeactivated() {
         return 'deactivatedMemberIds' in resource.data &&
                request.auth.uid in resource.data.deactivatedMemberIds;
@@ -13,7 +14,7 @@ service cloud.firestore {
         request.auth.token.email in resource.data.pendingInviteEmails ||
         (
           resource.data.inviteCodeEnabled == true &&
-          !isDeactivated()  // deactivated users cannot browse via invite code
+          !isDeactivated()               // NEW: deactivated users can't browse via code
         )
       );
 
@@ -23,10 +24,8 @@ service cloud.firestore {
         request.auth.uid in resource.data.memberIds ||
         request.auth.token.email in resource.data.pendingInviteEmails ||
         (
-          // Invite-code join path — only one uid may be appended, no other fields change,
-          // and the joining user must not be deactivated.
           resource.data.inviteCodeEnabled == true &&
-          !isDeactivated() &&
+          !isDeactivated() &&            // NEW: deactivated users can't rejoin via code
           request.resource.data.memberIds.hasAll(resource.data.memberIds) &&
           request.resource.data.memberIds.hasAll([request.auth.uid]) &&
           request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1 &&
@@ -40,42 +39,38 @@ service cloud.firestore {
       match /members/{uid} {
         allow read: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
-        allow create: if request.auth != null && request.auth.uid == uid;
+        allow create: if request.auth != null && (
+          request.auth.uid == uid ||
+          request.auth.uid == get(/databases/$(database)/documents/trips/$(tripId)).data.ownerId
+        );
         allow update, delete: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
-
         match /paymentHistory/{eventId} {
           allow read, write: if request.auth != null &&
             request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
         }
       }
-
       match /supplies/{itemId} {
         allow read, write: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
       }
-
       match /rides/{rideId} {
         allow read, write: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
       }
-
       match /rideRequests/{uid} {
         allow read, write: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
       }
-
       match /expenses/{expenseId} {
         allow read, write: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
       }
-
       match /history/{eventId} {
         allow read, write: if request.auth != null &&
           request.auth.uid in get(/databases/$(database)/documents/trips/$(tripId)).data.memberIds;
       }
     }
-
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }

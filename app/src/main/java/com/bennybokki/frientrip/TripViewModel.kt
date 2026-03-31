@@ -398,6 +398,27 @@ class TripViewModel(
         }
     }
 
+    fun addGuest(displayName: String) = viewModelScope.launch {
+        try {
+            repo.addGuestMember(tripId, displayName)
+            logHistory("members", "${actorName()} added guest member $displayName")
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "addGuest failed", e)
+            _errorMessage.tryEmit("Failed to add guest: ${e.message}")
+        }
+    }
+
+    fun removeGuest(uid: String) = viewModelScope.launch {
+        try {
+            val displayName = members.value.find { it.uid == uid }?.displayName ?: ""
+            repo.removeGuestMember(tripId, uid)
+            logHistory("members", "${actorName()} removed guest member $displayName")
+        } catch (e: Exception) {
+            Log.e("TripViewModel", "removeGuest failed", e)
+            _errorMessage.tryEmit("Failed to remove guest: ${e.message}")
+        }
+    }
+
     // ─── Invites ──────────────────────────────────────────────────────────────
 
     fun inviteByEmail(email: String) = viewModelScope.launch {

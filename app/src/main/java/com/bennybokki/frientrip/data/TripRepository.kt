@@ -175,7 +175,8 @@ class TripRepository(
                         amountPaid = doc.getDouble("amountPaid") ?: 0.0,
                         pendingPaymentAmount = doc.getDouble("pendingPaymentAmount") ?: 0.0,
                         pendingPaymentStatus = doc.getString("pendingPaymentStatus") ?: "none",
-                        status = doc.getString("status") ?: "active"
+                        status = doc.getString("status") ?: "active",
+                        isGuest = doc.getBoolean("isGuest") ?: false
                     )
                 }?.sortedBy { it.displayName } ?: emptyList()
                 trySend(members)
@@ -193,6 +194,43 @@ class TripRepository(
                     "amountPaid" to member.amountPaid
                 )
             ).await()
+    }
+
+    // ─── Guest members ────────────────────────────────────────────────────────
+
+    /**
+     * Adds a placeholder guest member to the trip's members subcollection.
+     * Guests are not added to memberIds — they have no app access — but are
+     * included in cost calculations like any active member.
+     */
+    suspend fun addGuestMember(tripId: String, displayName: String): String {
+        val docRef = tripsCollection.document(tripId).collection("members").document()
+        val guestId = docRef.id
+        docRef.set(
+            mapOf(
+                "uid" to guestId,
+                "displayName" to displayName.trim(),
+                "email" to "",
+                "avatarSeed" to Random.nextLong(),
+                "avatarColor" to 0,
+                "nightsStayed" to 0,
+                "amountPaid" to 0.0,
+                "pendingPaymentAmount" to 0.0,
+                "pendingPaymentStatus" to "none",
+                "status" to "active",
+                "isGuest" to true
+            )
+        ).await()
+        return guestId
+    }
+
+    /** Permanently removes a guest member document. */
+    suspend fun removeGuestMember(tripId: String, guestId: String) {
+        tripsCollection.document(tripId)
+            .collection("members")
+            .document(guestId)
+            .delete()
+            .await()
     }
 
     suspend fun submitPendingPayment(tripId: String, uid: String, amount: Double, actorName: String) {
